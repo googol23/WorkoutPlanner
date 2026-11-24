@@ -41,3 +41,8 @@ The offline prompt builder bundles the running skill, evidence register and
 uploader contract with a versioned planning input. Adjustment mode includes
 only the named workout from the source plan. Review the generated prompt
 before sharing it and dry-run the resulting workout JSON before uploading.
+
+The authenticated generation command uses Codex signed in with ChatGPT and
+validates the running plan before replacing the output file. Offline tests
+cover response handling. A live generation from the athlete's account is
+pending.

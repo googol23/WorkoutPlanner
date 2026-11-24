@@ -154,3 +154,38 @@ python upload_workouts.py next_workout.json --dry-run
 
 Cycling and strength outputs use their own formats for manual training.
 The Garmin uploader currently accepts running workout JSON.
+
+## Generate directly with your ChatGPT account
+
+Install the [Codex CLI](https://learn.chatgpt.com/docs/cli) and sign in with
+your ChatGPT account. To run login without environment proxies:
+
+```bash
+env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u FTP_PROXY \
+    -u http_proxy -u https_proxy -u all_proxy -u ftp_proxy \
+    codex login
+codex login status
+```
+
+Run the generator with the planning input you already built:
+
+```bash
+python generate_next_workout.py --planning-input planning_input.json
+```
+
+This sends the prompt and athlete history directly through the Codex CLI
+using your ChatGPT account. It removes proxy environment variables from
+the Codex subprocess and uses an ephemeral Codex session. Review the data
+in the planning input before running it. The command prints the rationale,
+checks the response against the selected sport, and writes
+`next_workout.json` only when a workout is returned and passes validation.
+Running uses the uploader's full validation. Cycling and strength plans
+receive basic format and sport checks and are for manual use.
+
+The generator also accepts `--existing-plan` and `--workout-name` together
+to adjust a named session. Use `--output` to choose a different destination.
+Review a generated running workout with:
+
+```bash
+python upload_workouts.py next_workout.json --dry-run
+```
