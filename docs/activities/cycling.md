@@ -15,3 +15,10 @@ and duplicate IDs. Garmin account behavior and cycling upload remain open.
 Use `cycling` as the target. The builder retains power, power zones, cadence,
 speed and heart-rate metrics where they appear in the export. Power and cadence
 coverage depends on what the activity recorded and what Garmin returned.
+
+## WorkoutPlanner subskill
+
+The [cycling subskill](../../skills/workout-planner/subskills/cycling.md) uses
+the [cycling research register](../../skills/workout-planner/references/cycling-evidence.md)
+to generate or revise a manual ride. It uses recent comparable ride data and
+athlete feedback, with effort cues when power targets are unsupported.

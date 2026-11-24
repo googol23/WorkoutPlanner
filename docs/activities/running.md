@@ -24,7 +24,7 @@ coverage.
 
 ## WorkoutPlanner skill
 
-The [running skill](../../skills/workout-planner/SKILL.md) supports generating
+The [running skill](../../skills/workout-planner/subskills/running.md) supports generating
 one next workout or adjusting a named session. It considers reported recovery
 alongside recent training and distinguishes missing metrics from zero values.
 The [evidence register](../../skills/workout-planner/references/running-evidence.md)

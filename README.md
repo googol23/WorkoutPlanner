@@ -120,10 +120,12 @@ The activity context documents describe sport-specific coverage.
 The builder runs locally. Review athlete notes and activity names before
 sharing the result, and keep personal exports and athlete context out of Git.
 
-## Prepare the running WorkoutPlanner prompt
+## Prepare the WorkoutPlanner prompt
 
-Build a single prompt containing the skill, evidence register, output
-contract and your planning input:
+Build a single prompt containing the shared skill, selected sport subskill,
+linked research, output format, and your planning input. Supported planning
+targets are `running`, `cycling`, and `strength_training`. Set the target with
+`--activity-type` when building the planning input.
 
 ```bash
 python build_chatgpt_prompt.py --planning-input planning_input.json > workout_prompt.md
@@ -141,9 +143,14 @@ athlete context and full activity history, plus the selected workout when
 adjusting a plan. The command runs offline. Keep the generated prompt and the
 personal inputs out of Git.
 
-Review ChatGPT's rationale and save the workout JSON block by itself as
-`next_workout.json`. Validate it offline with the Garmin uploader:
+Paste the prompt into ChatGPT and wait for a response. For running, review the
+rationale, then copy the contents of the workout JSON block into a new local
+file named `next_workout.json`. The prompt builder creates the prompt only.
+Once the workout file exists, validate it offline with the Garmin uploader:
 
 ```bash
 python upload_workouts.py next_workout.json --dry-run
 ```
+
+Cycling and strength outputs use their own formats for manual training.
+The Garmin uploader currently accepts running workout JSON.
