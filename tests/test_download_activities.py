@@ -66,6 +66,25 @@ class DownloadTests(unittest.TestCase):
         api.get_activity_details.assert_called_once_with("42", maxpoly=0)
         api.get_activity_step_details.assert_called_once_with("42")
 
+    def test_strength_export_keeps_exercise_sets_and_marks_empty_data(self):
+        api = self.api()
+        activity = run(42, "strength_training")
+        api.get_activity.side_effect = None
+        api.get_activity.return_value = activity
+        sets = {"exerciseSets": [{"exercises": [{"category": "SQUAT", "name": "GOBLET_SQUAT"}],
+                                  "repetitionCount": 10, "weight": 12000,
+                                  "weightUnit": {"unitKey": "kilogram"}, "ownerId": 7}]}
+        api.get_activity_exercise_sets.return_value = sets
+        result = exporter.export_activity(api, activity, activity_type="strength_training")
+        api.get_activity_exercise_sets.assert_called_once_with("42")
+        self.assertNotIn("ownerId", result["exercise_sets"]["exerciseSets"][0])
+        self.assertEqual(result["exercise_sets"]["exerciseSets"][0]["repetitionCount"], 10)
+
+        api.get_activity_exercise_sets.return_value = {"exerciseSets": []}
+        result = exporter.export_activity(api, activity, activity_type="strength_training")
+        self.assertIsNone(result["exercise_sets"])
+        self.assertIn("get_activity_exercise_sets", result["unavailable_fields"])
+
     def test_missing_optional_data(self):
         api = self.api()
         api.get_activity_splits.side_effect = exporter.GarminConnectNotFoundError("missing")

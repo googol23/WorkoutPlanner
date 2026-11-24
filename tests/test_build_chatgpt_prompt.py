@@ -115,6 +115,21 @@ class ChatGPTPromptTests(unittest.TestCase):
                 self.assertIn(field, prompt)
                 self.assertNotIn("10.1519/R-19725.1", prompt)
 
+    def test_strength_prompt_keeps_nested_exercise_names_and_units(self):
+        sport = "strength_training"
+        data = {**self.planning_input, "target_activity_type": sport,
+                "athlete": {**self.planning_input["athlete"], "activity_type": sport}}
+        activity = data["activity_history"]["activities"][0]
+        activity["summary"]["activityType"]["typeKey"] = sport
+        exercise = {"setType": "ACTIVE", "repetitionCount": 8, "weight": 12000,
+                    "weightUnit": {"unitKey": "kilogram"},
+                    "exercises": [{"category": "SQUAT", "name": "GOBLET_SQUAT"}]}
+        activity["exercise_sets"] = {"exerciseSets": [exercise] * 20}
+        prompt = handoff.build_prompt(data)
+        bundled = json.loads(prompt.split("\n# Input data\n", 1)[1])
+        rows = bundled["planning_input"]["activity_history"]["activities"][0]["first_exercise_sets"]
+        self.assertEqual(rows, [exercise] * 12)
+
     def test_adjusts_manual_sport_plan_and_checks_sport(self):
         data = {**self.planning_input, "target_activity_type": "cycling",
                 "athlete": {**self.planning_input["athlete"], "activity_type": "cycling"}}

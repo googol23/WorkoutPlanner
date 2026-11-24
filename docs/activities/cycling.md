@@ -36,3 +36,8 @@ or an explicit cross-training purpose. The prompt uses rides for cycling
 benchmarks and keeps other sports as recovery context. A local input review
 found a running goal paired with a cycling target. The builder now rejects
 an untagged or differently tagged profile for cycling.
+
+## Live result
+
+The athlete reviewed the generated 90-minute ride and confirmed that a live
+retry found the existing workout in Garmin and skipped the duplicate.

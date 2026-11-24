@@ -237,3 +237,12 @@ Cycling steps carry an effort cue and may include a supported watt range.
 After reviewing the preview, use the same uploader without `--dry-run`
 to create the Garmin workout. Scheduling is optional with `--schedule` and
 an explicit `scheduled_date` on the workout.
+
+### Prepare a gym workout
+
+For Garmin activities with the exact `strength_training` type, the exporter
+also requests recorded exercise sets. Missing or empty set data is marked
+unavailable. Use a profile such as `athlete_strength.json` with
+`"activity_type": "strength_training"`, your strength or hypertrophy goal,
+available time, and the equipment and training background you want the
+planner to consider.

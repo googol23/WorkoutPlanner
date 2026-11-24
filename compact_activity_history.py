@@ -27,7 +27,7 @@ METRICS = (
 ZONE_FIELDS = ("zone", "zoneNumber", "secsInZone", "secondsInZone", "zoneLowBoundary",
                "zoneHighBoundary", "lowerBoundary", "upperBoundary")
 EXERCISE_FIELDS = ("exerciseName", "name", "category", "setType", "reps", "repetitionCount",
-                   "weight", "weightUnit", "load", "loadUnit", "duration")
+                   "weight", "weightUnit", "weightInGrams", "load", "loadUnit", "duration")
 FEEDBACK_FIELDS = ("perceived_effort", "fatigue", "pain", "comments")
 
 
@@ -58,6 +58,27 @@ def activity_type_key(activity):
     return None
 
 
+def summarize_exercise_sets(source):
+    if isinstance(source, dict):
+        source = source.get("exerciseSets")
+    if not isinstance(source, list):
+        return []
+    rows = []
+    for item in islice(source, 12):
+        if not isinstance(item, dict):
+            continue
+        row = select_scalars(item, EXERCISE_FIELDS)
+        unit = select_scalars(item.get("weightUnit"), ("unitKey", "displayName", "factor"))
+        if unit:
+            row["weightUnit"] = unit
+        exercises = select_rows(item.get("exercises"), ("name", "category"), 3)
+        if exercises:
+            row["exercises"] = exercises
+        if row:
+            rows.append(row)
+    return rows
+
+
 def summarize_activity(activity):
     summary = activity["summary"]
     metrics = select_scalars(summary, METRICS)
@@ -80,9 +101,7 @@ def summarize_activity(activity):
         result["first_splits"] = rows
 
     exercise_sets = activity.get("exercise_sets", summary.get("exerciseSets"))
-    if isinstance(exercise_sets, dict):
-        exercise_sets = exercise_sets.get("exerciseSets")
-    rows = select_rows(exercise_sets, EXERCISE_FIELDS, 12)
+    rows = summarize_exercise_sets(exercise_sets)
     if rows:
         result["first_exercise_sets"] = rows
 

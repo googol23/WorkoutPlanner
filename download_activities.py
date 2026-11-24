@@ -175,6 +175,13 @@ def export_activity(api, listing, feedback=None, *, activity_type="running"):
         "weather": "get_activity_weather",
     }
     data = {key: optional(api, method, str(activity_id), unavailable) for key, method in sections.items()}
+    if key == "strength_training":
+        method = "get_activity_exercise_sets"
+        exercise_sets = optional(api, method, str(activity_id), unavailable)
+        if isinstance(exercise_sets, dict) and exercise_sets.get("exerciseSets") == []:
+            unavailable.append(method)
+            exercise_sets = None
+        data["exercise_sets"] = exercise_sets
     summary_fields = summary.get("summaryDTO")
     if not isinstance(summary_fields, dict):
         summary_fields = {}
