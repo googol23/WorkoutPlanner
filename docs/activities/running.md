@@ -1,15 +1,15 @@
 # Running
 
 - **Current support:** Completed running activities can be exported by recent count or activity ID. Structured workouts can be validated, uploaded and optionally scheduled.
-- **Verification:** The offline suite and the uploader dry-run pass with the pinned Garmin dependency. Live account behavior remains unverified.
-- **Next:** Define date filtering and verify Garmin's running activity type mappings. Record available metrics, units and missing fields before adding planning rules.
-- **Evidence and decisions:** Add reviewed training sources and the planning rules they support as the running skill is developed.
+- **Verification:** The offline suite and the uploader dry-run pass with the pinned Garmin dependency. A live mixed-sport export succeeded.
+- **Next:** Verify the skill with a live ChatGPT handoff and a reviewed workout dry-run.
+- **Evidence and decisions:** See the running skill and evidence register below.
 
 ## Filtered sync
 
 Running remains the default type, including count and ID exports. Date ranges
 select the exact `running` key by the recorded local date. Offline tests cover
-the existing running commands. Garmin account behavior is pending a live check.
+the existing running commands.
 
 ## Planning input
 
@@ -20,4 +20,17 @@ them. The builder preserves exported values, units and sample descriptors.
 A live mixed-sport export reported a completed-activity validation error after
 login. The exporter now recognizes Garmin's detail `activityTypeDTO` shape
 and uses the list entry's type when detail omits it. Both cases have offline
-coverage. A live retry is still pending.
+coverage.
+
+## WorkoutPlanner skill
+
+The [running skill](../../skills/workout-planner/SKILL.md) supports generating
+one next workout or adjusting a named session. It considers reported recovery
+alongside recent training and distinguishes missing metrics from zero values.
+The [evidence register](../../skills/workout-planner/references/running-evidence.md)
+records the study populations, limitations, and planning implications.
+The [output contract](../../skills/workout-planner/references/running-output.md)
+keeps the rationale separate from Garmin-ready JSON.
+
+A local live retry of the mixed-sport export succeeded after the activity type
+fix. Upload and end-to-end ChatGPT generation still need live verification.

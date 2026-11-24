@@ -119,3 +119,16 @@ The activity context documents describe sport-specific coverage.
 
 The builder runs locally. Review athlete notes and activity names before
 sharing the result, and keep personal exports and athlete context out of Git.
+
+## Use the running WorkoutPlanner skill
+
+Supply [the skill instructions](skills/workout-planner/SKILL.md),
+[the running evidence register](skills/workout-planner/references/running-evidence.md),
+[the output contract](skills/workout-planner/references/running-output.md),
+and your `planning_input.json` to ChatGPT. Ask for the next running workout.
+To adjust a session, also provide its existing plan JSON and the workout name.
+Review the rationale and save the separate workout JSON as `next_workout.json`.
+
+```bash
+python upload_workouts.py next_workout.json --dry-run
+```
