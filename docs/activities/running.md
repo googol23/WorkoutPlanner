@@ -2,7 +2,7 @@
 
 - **Current support:** Completed running activities can be exported by recent count or activity ID. Structured workouts can be validated, uploaded and optionally scheduled.
 - **Verification:** The offline suite and the uploader dry-run pass with the pinned Garmin dependency. A live mixed-sport export succeeded.
-- **Next:** Verify an interactive ChatGPT response and a reviewed workout dry-run.
+- **Next:** Verify live Garmin upload and confirm the workout in Garmin Connect.
 - **Evidence and decisions:** See the running skill and evidence register below.
 
 ## Filtered sync
@@ -33,7 +33,7 @@ The [output contract](../../skills/workout-planner/references/running-output.md)
 keeps the rationale separate from Garmin-ready JSON.
 
 A local live retry of the mixed-sport export succeeded after the activity type
-fix. Upload and end-to-end ChatGPT generation still need live verification.
+fix. Live upload is the next acceptance check.
 
 ## ChatGPT handoff
 
@@ -44,5 +44,13 @@ before sharing it and dry-run the resulting workout JSON before uploading.
 
 The authenticated generation command uses Codex signed in with ChatGPT and
 validates the running plan before replacing the output file. Offline tests
-cover response handling. A live generation from the athlete's account is
-pending.
+cover response handling. The athlete confirmed live generation and an
+uploader dry-run for a 25-minute run-walk workout.
+
+## Live upload acceptance
+
+After reviewing the generated plan, run the uploader without `--dry-run`
+or `--schedule`. Confirm the reported workout ID and the workout steps in
+Garmin Connect. A second run can verify that the existing name is detected
+and the upload is skipped. If a request fails after sending, check Garmin
+Connect before retrying.
