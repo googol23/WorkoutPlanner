@@ -59,7 +59,7 @@ the target file when results are available. If no matching activities are
 found, the command exits with an error and leaves any existing file intact.
 
 `--activity-type` defaults to `running` and accepts `all` or an exact Garmin
-`activityType.typeKey` from the activity summary. A parent sport key does not
+`typeKey` from the activity's `activityType` or `activityTypeDTO` object. A parent sport key does not
 automatically select its subtypes. Use `all` and inspect the reported type keys
 when a subtype is unknown. The default output is `<activity-type>_activities.json`,
 including `all_activities.json` for mixed sports.

@@ -158,6 +158,32 @@ class DownloadTests(unittest.TestCase):
             self.assertEqual(output.read_text(encoding="utf-8"), "existing")
         api.get_activity.assert_not_called()
 
+    def test_export_accepts_garmin_detail_type_dto(self):
+        api = self.api()
+        api.get_activity.side_effect = None
+        api.get_activity.return_value = {
+            "activityTypeDTO": {"typeKey": "cycling"},
+            "summaryDTO": {"startTimeLocal": "2026-11-23 07:00:00"},
+        }
+        result = exporter.export_activity(api, run(42, "cycling"), activity_type="all")
+        self.assertEqual(result["activity_date"], "2026-11-23 07:00:00")
+        self.assertEqual(result["activity_name"], "Morning Run")
+        result = exporter.export_activity(api, {"activityId": 42}, activity_type="cycling")
+        self.assertEqual(result["summary"]["activityTypeDTO"]["typeKey"], "cycling")
+
+    def test_export_uses_list_type_only_when_detail_type_is_missing(self):
+        api = self.api()
+        api.get_activity.side_effect = None
+        api.get_activity.return_value = {}
+        result = exporter.export_activity(api, run(42, "cycling"), activity_type="cycling")
+        self.assertEqual(result["activity_date"], "2026-11-23 08:00:00")
+        api.get_activity.return_value = {"activityTypeDTO": {"typeKey": "running"}}
+        with self.assertRaisesRegex(RuntimeError, "not a completed cycling activity"):
+            exporter.export_activity(api, run(42, "cycling"), activity_type="cycling")
+        api.get_activity.return_value = {"inProgress": True}
+        with self.assertRaisesRegex(RuntimeError, "not a completed cycling activity"):
+            exporter.export_activity(api, run(42, "cycling"), activity_type="cycling")
+
     def test_specific_id_rejects_other_sports_and_no_output(self):
         api = self.api()
         api.get_activity.return_value = run(42, "cycling")

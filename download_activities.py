@@ -38,10 +38,17 @@ def safe(value):
     return value
 
 
-def matches_type(activity, activity_type):
-    kind = activity.get("activityType")
-    key = kind.get("typeKey") if isinstance(kind, dict) else None
-    return isinstance(key, str) and bool(key) and (activity_type == "all" or key == activity_type)
+def type_key(activity):
+    for field in ("activityTypeDTO", "activityType"):
+        kind = activity.get(field)
+        key = kind.get("typeKey") if isinstance(kind, dict) else None
+        if isinstance(key, str) and key:
+            return key
+    return None
+
+
+def matches_type(key, activity_type):
+    return key is not None and (activity_type == "all" or key == activity_type)
 
 
 def collect_activities(page, activity_type, seen, bounds=None):
@@ -51,7 +58,7 @@ def collect_activities(page, activity_type, seen, bounds=None):
         if not isinstance(item, dict):
             raise RuntimeError("Unexpected Garmin activity entry")
         activity_id = item.get("activityId")
-        if not activity_id or item.get("inProgress") or not matches_type(item, activity_type):
+        if not activity_id or item.get("inProgress") or not matches_type(type_key(item), activity_type):
             continue
         if bounds:
             local_start = item.get("startTimeLocal")
@@ -152,7 +159,8 @@ def export_activity(api, listing, feedback=None, *, activity_type="running"):
     summary = api.get_activity(str(activity_id))
     if not isinstance(summary, dict):
         raise RuntimeError(f"Unexpected activity summary for {activity_id}")
-    if not matches_type(summary, activity_type) or summary.get("inProgress"):
+    key = type_key(summary) or type_key(listing)
+    if not matches_type(key, activity_type) or summary.get("inProgress"):
         description = "activity" if activity_type == "all" else f"{activity_type} activity"
         raise RuntimeError(f"Activity {activity_id} is not a completed {description}")
     details = optional(api, "get_activity_details", str(activity_id), unavailable, maxpoly=0)
@@ -167,10 +175,15 @@ def export_activity(api, listing, feedback=None, *, activity_type="running"):
         "weather": "get_activity_weather",
     }
     data = {key: optional(api, method, str(activity_id), unavailable) for key, method in sections.items()}
+    summary_fields = summary.get("summaryDTO")
+    if not isinstance(summary_fields, dict):
+        summary_fields = {}
     return {
         "activity_id": activity_id,
-        "activity_name": summary.get("activityName"),
-        "activity_date": summary.get("startTimeLocal") or summary.get("startTimeGMT"),
+        "activity_name": summary.get("activityName") or listing.get("activityName"),
+        "activity_date": (summary.get("startTimeLocal") or summary_fields.get("startTimeLocal")
+                          or listing.get("startTimeLocal") or summary.get("startTimeGMT")
+                          or summary_fields.get("startTimeGMT") or listing.get("startTimeGMT")),
         "summary": safe(summary),
         **{key: safe(value) for key, value in data.items()},
         "time_series": time_series,

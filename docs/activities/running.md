@@ -16,3 +16,8 @@ the existing running commands. Garmin account behavior is pending a live check.
 Use `running` as the target. The history can supply distance, duration, pace
 or speed, heart rate, zone time, splits, and workout steps when Garmin returns
 them. The builder preserves exported values, units and sample descriptors.
+
+A live mixed-sport export reported a completed-activity validation error after
+login. The exporter now recognizes Garmin's detail `activityTypeDTO` shape
+and uses the list entry's type when detail omits it. Both cases have offline
+coverage. A live retry is still pending.
