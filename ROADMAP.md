@@ -23,8 +23,9 @@ with a local verification command and record which checks need a Garmin account.
 
 Running upload and duplicate detection passed on a live account. Cycling's
 live retry found the existing workout and skipped the duplicate. The athlete
-reported that the strength workflow passed locally. Live calendar scheduling
-and its duplicate check are the remaining acceptance checks.
+confirmed live strength upload and calendar scheduling. Repeating the same
+request skipped both the existing upload and calendar entry. The planned
+local acceptance checks are complete.
 
 ## Activity context
 
