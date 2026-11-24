@@ -89,3 +89,33 @@ Step forms:
 On each live invocation the script pages through your Garmin workout library and skips an existing **identically named** template (names serve as identifiers, not a content checksum). Multiple templates with the same name stop processing. If an existing template's contents were changed, the script does not update it; review it manually. For scheduling it loads the affected months' calendar entries and skips an existing `(workoutId, date)` pair. It stops on an unrecognized calendar response rather than risking duplicates. No local database or token files are written to the project. An upload with an ambiguous/failed response may nevertheless have succeeded: check the Garmin workout library before retrying. API requests are not atomic, and concurrent runs or Garmin's delayed calendar visibility can still cause duplicates; do not run two copies simultaneously. The script does not modify or remove existing workouts or calendar entries.
 
 Unit tests use mocked library objects/API responses and make **no live Garmin requests**. The installed dependency's real API and account behavior cannot be confirmed without a separately authorized live test.
+
+## Build planning input
+
+Create an `athlete.json` file with your own context. The required fields are
+`goals` and `availability`. Optional fields are `constraints`, `preferences`,
+and `recent_feedback`. Each field is nonempty text.
+
+```json
+{
+  "goals": "Build endurance for a 10 km run",
+  "availability": "30 minutes for the next workout",
+  "preferences": "Outdoor route",
+  "recent_feedback": "The last easy run felt comfortable"
+}
+```
+
+```bash
+python build_planning_input.py --activities all_activities.json --athlete athlete.json --activity-type running > planning_input.json
+```
+
+The builder writes a JSON object with `schema_version: "1.0"`,
+`target_activity_type`, `athlete`, and `activity_history`. The target names
+the next workout, so the history can include multiple sports. The builder keeps
+the exported summaries, splits, workout steps, heart-rate and power zones,
+sample descriptors and values, weather, subjective feedback, and missing-field
+markers as supplied. It carries through Garmin's chart sampling limits.
+The activity context documents describe sport-specific coverage.
+
+The builder runs locally. Review athlete notes and activity names before
+sharing the result, and keep personal exports and athlete context out of Git.

@@ -9,3 +9,10 @@
 Use `--activity-type all` to inspect the Garmin type recorded for climbing
 activities, then select that exact key. Whether the account reports bouldering
 as a distinct type still needs a live check.
+
+## Planning input
+
+Use `bouldering` as the target even when past sessions are labeled indoor
+climbing. The builder preserves recorded session metrics and missing fields.
+Use athlete notes for attempts, grades and recent feedback if those details
+are absent from the export.

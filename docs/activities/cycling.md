@@ -9,3 +9,9 @@
 The exporter accepts the exact `cycling` key. Subtypes can be selected by their
 own Garmin key. Offline tests cover mixed-type results, inclusive local dates
 and duplicate IDs. Garmin account behavior and cycling upload remain open.
+
+## Planning input
+
+Use `cycling` as the target. The builder retains power, power zones, cadence,
+speed and heart-rate metrics where they appear in the export. Power and cadence
+coverage depends on what the activity recorded and what Garmin returned.

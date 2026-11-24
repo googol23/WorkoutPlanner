@@ -10,3 +10,9 @@
 Running remains the default type, including count and ID exports. Date ranges
 select the exact `running` key by the recorded local date. Offline tests cover
 the existing running commands. Garmin account behavior is pending a live check.
+
+## Planning input
+
+Use `running` as the target. The history can supply distance, duration, pace
+or speed, heart rate, zone time, splits, and workout steps when Garmin returns
+them. The builder preserves exported values, units and sample descriptors.
