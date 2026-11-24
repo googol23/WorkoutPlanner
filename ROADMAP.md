@@ -23,3 +23,15 @@ with a local verification command and record which checks need a Garmin account.
 The initial handoff is manual so the athlete can review the prompt and activity
 data before sharing it. Start with the running uploader as the end-to-end path,
 then add sports as their metric coverage and Garmin workout support are verified.
+
+## Activity context
+
+Keep one Markdown document per activity type under `docs/activities/`.
+Update the relevant document in each activity-specific commit with verified
+Garmin behavior, sources, planning decisions, verification results and open
+questions. Keep these records at the project level and exclude personal activity
+data and athlete notes.
+
+- [Running](docs/activities/running.md)
+- [Cycling](docs/activities/cycling.md)
+- [Bouldering](docs/activities/bouldering.md)
