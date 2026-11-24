@@ -1,7 +1,7 @@
 {
-  "squat_and_lunge": ["Goblet Squat", "Dumbbell Lunge", "Dumbbell Bulgarian Split Squat", "Leg Press", "Banded Squat"],
-  "hip_hinge_and_extension": ["Romanian Deadlift", "Single-leg Romanian Deadlift with Dumbbell", "Hip Raise", "Weighted Hip Raise", "Barbell Hip Thrust with Bench"],
-  "upper_body_push": ["Push-up", "Dumbbell Bench Press", "Barbell Bench Press", "Dumbbell Shoulder Press"],
-  "upper_body_pull": ["Dumbbell Row", "Seated Cable Row", "Lat Pull-down", "Face Pull", "Banded Row"],
-  "accessories": ["Dumbbell Biceps Curl", "Dumbbell Lateral Raise", "Calf Raise", "Seated Calf Raise", "Banded Hamstring Curls"]
+  "squat_and_lunge": ["Squat", "Goblet Squat", "Dumbbell Squat", "Barbell Back Squat", "Dumbbell Lunge", "Dumbbell Bulgarian Split Squat", "Leg Press"],
+  "hip_hinge_and_extension": ["Hip Raise", "Weighted Hip Raise", "Dumbbell Deadlift", "Barbell Deadlift", "Kettlebell Swing", "Good Morning"],
+  "upper_body_push": ["Barbell Bench Press", "Barbell Floor Press", "Dumbbell Bench Press", "Dumbbell Floor Press", "Incline Dumbbell Bench Press", "Dumbbell Shoulder Press"],
+  "upper_body_pull": ["Dumbbell Row", "Alternating Dumbbell Row", "Seated Cable Row", "Cable Row Standing", "Inverted Row", "Face Pull"],
+  "accessories_and_core": ["Seated Calf Raise", "Dumbbell Lying Triceps Extension", "Cable Lying Triceps Extension", "Kneeling Ab Wheel", "Russian Twist"]
 }

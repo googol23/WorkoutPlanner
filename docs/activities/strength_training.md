@@ -30,3 +30,10 @@ matches for other unknown names. Suggestions require manual selection.
 The generation prompt now includes a curated list of exact Garmin exercise
 names grouped by movement. Tests verify every name against the pinned
 Garmin library. The full catalog stays local to keep the prompt small.
+
+The curated prompt catalog uses the **Exercices** tab of the
+[GARMIN CONNECT EXERCICES spreadsheet](https://docs.google.com/spreadsheets/d/1p3lsvV9mmS4BWgT8Yf8wztBNLtPSbUjysVauqVQQUXA/edit?gid=0#gid=0).
+Each selected display name, category and exercise code matched
+`garminconnect==0.3.20`. The prompt sends only exact display names grouped
+by movement. Upload resolves the Garmin codes locally. Images, URLs and
+muscle flags stay out of the prompt.
