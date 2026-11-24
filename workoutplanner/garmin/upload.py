@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate, upload and optionally schedule JSON running workouts."""
+"""Validate, upload and optionally schedule JSON workouts."""
 
 import argparse
 import math
@@ -26,12 +26,15 @@ from garminconnect.workout import (
 )
 
 from workoutplanner.garmin.auth import authenticate
+from workoutplanner.garmin.strength import build_strength_workout
 from workoutplanner.workout_schema import InputError, duration, read_plan, validate_plan
 SPORT = {"sportTypeId": 1, "sportTypeKey": "running"}
 CYCLING_SPORT = {"sportTypeId": 2, "sportTypeKey": "cycling"}
 
 
 def build_workout(source, *, sport="running"):
+    if sport == "strength_training":
+        return build_strength_workout(source)
     order = 0
 
     def convert(steps):
@@ -130,7 +133,12 @@ def upload_plan(api, workouts, schedule=False, *, sport="running"):
                 raise RuntimeError(f"Existing workout {name!r} has no ID")
             print(f"Already uploaded: {name} (ID {workout_id}); skipping upload")
         else:
-            upload = api.upload_cycling_workout if sport == "cycling" else api.upload_running_workout
+            upload_name = {
+                "running": "upload_running_workout",
+                "cycling": "upload_cycling_workout",
+                "strength_training": "upload_strength_workout",
+            }[sport]
+            upload = getattr(api, upload_name)
             result = upload(build_workout(source, sport=sport))
             workout_id = result.get("workoutId") if isinstance(result, dict) else None
             if not workout_id:
@@ -169,7 +177,9 @@ def main(argv=None):
             build_workout(source, sport=sport)  # validate conversion before any remote writes
         if args.dry_run:
             for source in workouts:
-                print(f"DRY RUN: {source['name']} ({duration(source['steps'])} seconds)" + (f"; schedule {source['scheduled_date']}" if args.schedule and "scheduled_date" in source else ""))
+                seconds = (source["estimated_duration_seconds"] if sport == "strength_training"
+                           else duration(source["steps"]))
+                print(f"DRY RUN: {source['name']} ({seconds} seconds)" + (f"; schedule {source['scheduled_date']}" if args.schedule and "scheduled_date" in source else ""))
             return 0
         upload_plan(authenticate(), workouts, args.schedule, sport=sport)
         return 0

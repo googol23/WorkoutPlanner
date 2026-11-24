@@ -178,8 +178,8 @@ Once the workout file exists, validate it offline with the Garmin uploader:
 python upload_workouts.py next_workout.json --dry-run
 ```
 
-Cycling uses its own timed-step format and can also be previewed and uploaded
-with the Garmin uploader. Strength plans are for manual use.
+Cycling and gym strength use their own formats and can also be previewed and
+uploaded with the Garmin uploader.
 
 ## Generate directly with your ChatGPT account
 
@@ -205,8 +205,8 @@ the Codex subprocess and uses an ephemeral Codex session. Review the data
 in the planning input before running it. The command prints the rationale,
 checks the response against the selected sport, and writes
 `next_workout.json` only when a workout is returned and passes validation.
-Running and cycling use the uploader's full validation. Strength plans
-receive basic format and sport checks and are for manual use.
+The generator validates the workout JSON. For strength plans, the uploader
+also checks each exercise name against the Garmin catalog before login.
 
 The generator also accepts `--existing-plan` and `--workout-name` together
 to adjust a named session. Use `--output` to choose a different destination.
@@ -272,3 +272,17 @@ unavailable. Use a profile such as `athlete_strength.json` with
 `"activity_type": "strength_training"`, your strength or hypertrophy goal,
 available time, and the equipment and training background you want the
 planner to consider.
+
+After creating `athlete_strength.json`, build, generate, and preview the gym
+workout:
+
+```bash
+python build_planning_input.py --activities strength_activities.json \
+  --athlete athlete_strength.json --activity-type strength_training > strength_input.json &&
+python generate_next_workout.py --planning-input strength_input.json --output next_strength.json &&
+python upload_workouts.py next_strength.json --dry-run
+```
+
+Garmin strength steps use exact exercise display names, the lower rep target,
+and timed rests between sets. Workout notes preserve the warmup and step
+notes preserve the rep range and effort cue.

@@ -89,6 +89,8 @@ def load_plan(path):
 def validate_plan(data):
     if isinstance(data, dict) and data.get("sport") == "cycling":
         return validate_cycling_plan(data)
+    if isinstance(data, dict) and data.get("sport") == "strength_training":
+        return validate_strength_plan(data)
     fields(data, {"schema_version", "sport", "timezone", "units", "workouts"}, set(), "plan")
     if data["schema_version"] != "1.0" or data["sport"] != "running":
         raise InputError("Only schema_version 1.0 and sport running are supported")
@@ -164,6 +166,56 @@ def validate_cycling_plan(data):
                     raise InputError("Maximum watts must be at least minimum watts")
         if positive(workout["total_duration_seconds"], "total_duration_seconds") != duration(steps):
             raise InputError("Cycling total_duration_seconds does not match the steps")
+    return workouts
+
+
+def validate_strength_plan(data):
+    fields(data, {"schema_version", "sport", "workouts"}, set(), "strength plan")
+    if data["schema_version"] != "1.0":
+        raise InputError("Strength plan schema_version must be 1.0")
+    workouts = data["workouts"]
+    if not isinstance(workouts, list) or not workouts:
+        raise InputError("workouts must be a nonempty list")
+    names = set()
+    for workout in workouts:
+        fields(workout, {"name", "estimated_duration_seconds", "warmup", "exercises"},
+               {"scheduled_date"}, "strength workout")
+        name = workout["name"]
+        if not isinstance(name, str) or not name.strip() or name in names:
+            raise InputError("Strength workout names must be nonempty and unique")
+        names.add(name)
+        if "scheduled_date" in workout:
+            day = workout["scheduled_date"]
+            if not isinstance(day, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", day):
+                raise InputError("scheduled_date must be YYYY-MM-DD")
+            date.fromisoformat(day)
+        positive(workout["estimated_duration_seconds"], "estimated_duration_seconds")
+        if not isinstance(workout["warmup"], str) or not workout["warmup"].strip():
+            raise InputError("Strength workout warmup must be nonempty text")
+        exercises = workout["exercises"]
+        if not isinstance(exercises, list) or not exercises:
+            raise InputError("exercises must be a nonempty list")
+        for exercise in exercises:
+            fields(exercise, {"name", "sets", "reps", "rest_seconds", "effort"}, {"load"}, "exercise")
+            for field in ("name", "effort"):
+                if not isinstance(exercise[field], str) or not exercise[field].strip():
+                    raise InputError(f"Exercise {field} must be nonempty text")
+            if type(exercise["sets"]) is not int or not 1 <= exercise["sets"] <= 100:
+                raise InputError("Exercise sets must be an integer from 1 to 100")
+            reps = exercise["reps"]
+            fields(reps, {"min", "max"}, set(), "reps")
+            if (type(reps["min"]) is not int or type(reps["max"]) is not int
+                    or not 1 <= reps["min"] <= reps["max"]):
+                raise InputError("Exercise reps must be positive integers in ascending order")
+            rest = exercise["rest_seconds"]
+            if type(rest) is not int or rest < 0:
+                raise InputError("Exercise rest_seconds must be a nonnegative integer")
+            if "load" in exercise:
+                load = exercise["load"]
+                fields(load, {"value", "unit"}, set(), "exercise load")
+                positive(load["value"], "exercise load value")
+                if load["unit"] not in ("kg", "lb"):
+                    raise InputError("Exercise load unit must be kg or lb")
     return workouts
 
 

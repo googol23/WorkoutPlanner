@@ -24,6 +24,7 @@ def step(kind):
     return build
 
 
+from workoutplanner.garmin.strength import build_strength_workout
 from workoutplanner.workout_schema import load_plan
 
 
@@ -138,6 +139,34 @@ class UploadTests(unittest.TestCase):
         plan["workouts"][0]["steps"][0]["power_watts"]["min"] = 150
         with self.assertRaisesRegex(module.InputError, "Maximum watts"):
             module.validate_plan(plan)
+
+    def test_strength_conversion_and_upload(self):
+        plan = {"schema_version": "1.0", "sport": "strength_training", "workouts": [{
+            "name": "Gym test", "estimated_duration_seconds": 900, "warmup": "Warm up",
+            "exercises": [{"name": "Goblet Squat", "sets": 2, "reps": {"min": 8, "max": 10},
+                           "rest_seconds": 60, "effort": "Easy", "load": {"value": 20, "unit": "lb"}}],
+        }]}
+        workouts = module.validate_plan(plan)
+        converted = build_strength_workout(workouts[0]).to_dict()
+        steps = converted["workoutSegments"][0]["workoutSteps"]
+        self.assertEqual(converted["sportType"]["sportTypeKey"], "strength_training")
+        self.assertEqual([step["endConditionValue"] for step in steps], [8, 60, 8])
+        self.assertEqual(steps[0]["exerciseName"], "GOBLET_SQUAT")
+        self.assertAlmostEqual(steps[0]["weightValue"], 9071.8474)
+        api = Mock()
+        api.get_workouts.return_value = []
+        api.upload_strength_workout.return_value = {"workoutId": 5}
+        module.upload_plan(api, workouts, sport="strength_training")
+        api.upload_strength_workout.assert_called_once()
+        api.get_workouts.return_value = [{"workoutName": "Gym test", "workoutId": 5}]
+        module.upload_plan(api, workouts, sport="strength_training")
+        api.upload_strength_workout.assert_called_once()
+        plan["workouts"][0]["exercises"][0]["name"] = "Unknown exercise"
+        with tempfile.TemporaryDirectory() as folder, patch.object(module, "authenticate") as auth:
+            path = Path(folder) / "strength.json"
+            path.write_text(json.dumps(plan), encoding="utf-8")
+            self.assertEqual(module.main([str(path), "--dry-run"]), 1)
+            auth.assert_not_called()
 
     def test_unknown_calendar_refuses_write(self):
         api = Mock()

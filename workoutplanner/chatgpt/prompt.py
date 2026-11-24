@@ -17,22 +17,9 @@ SPORTS = ("running", "cycling", "strength_training")
 
 
 def validate_existing_plan(plan, sport):
-    if sport in ("running", "cycling"):
-        if plan.get("sport") != sport:
-            raise ValueError(f"Existing plan must have sport {sport}")
-        return validate_plan(plan)
-    if plan.get("schema_version") != "1.0" or plan.get("sport") != sport:
-        raise ValueError(f"Existing plan must have schema_version 1.0 and sport {sport}")
-    workouts = plan.get("workouts")
-    if not isinstance(workouts, list) or not workouts:
-        raise ValueError("Existing plan must have a nonempty workouts array")
-    names = set()
-    for workout in workouts:
-        name = workout.get("name") if isinstance(workout, dict) else None
-        if not isinstance(name, str) or not name.strip() or name in names:
-            raise ValueError("Existing plan workouts must have unique nonempty names")
-        names.add(name)
-    return workouts
+    if plan.get("sport") != sport:
+        raise ValueError(f"Workout plan must have sport {sport}")
+    return validate_plan(plan)
 
 
 def build_prompt(planning_input, existing_plan=None, workout_name=None):

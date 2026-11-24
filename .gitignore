@@ -17,3 +17,5 @@ token
 /athlete_*.json
 /cycling_input.json
 /next_ride.json
+/strength_input.json
+/next_strength.json

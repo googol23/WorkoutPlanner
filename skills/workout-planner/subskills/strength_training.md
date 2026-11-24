@@ -20,8 +20,16 @@ Read the [strength training evidence register](../references/strength_training-e
 Return a standalone JSON object with `schema_version: "1.0"`,
 `sport: "strength_training"`, and a nonempty `workouts` array. Each workout
 has a unique `name`, `estimated_duration_seconds`, a `warmup` cue and
-an ordered `exercises` array. Each exercise has a `name`, positive whole
+an ordered `exercises` array. Use exact Garmin exercise display names. Verified
+examples include Goblet Squat, Dumbbell Lunge, Leg Press, Dumbbell Bench Press,
+Barbell Bench Press, Push-up, Dumbbell Row, Seated Cable Row, Dumbbell Shoulder
+Press and Dumbbell Biceps Curl. Favor a matching catalog exercise the athlete
+can perform with their equipment. Each exercise has a `name`, positive whole
 `sets`, a `reps` object with whole `min` and `max`, `rest_seconds`,
 and an `effort` cue. Include optional `load: {"value": ..., "unit": "kg"}`
 (or `"lb"`) only when the input supports it. Account for warmup, work,
-rest, and setup when estimating duration. This plan is for manual use.
+rest, and setup when estimating duration. The uploader uses the lower end
+of the rep range as the watch target and preserves the range in the step
+note. It inserts rest between sets and keeps the warmup as a workout note.
+Use an explicit `scheduled_date` only when requested and known. Preview the
+result with the Garmin uploader's `--dry-run`.
