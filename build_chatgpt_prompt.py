@@ -17,7 +17,9 @@ SPORTS = ("running", "cycling", "strength_training")
 
 
 def validate_existing_plan(plan, sport):
-    if sport == "running":
+    if sport in ("running", "cycling"):
+        if plan.get("sport") != sport:
+            raise ValueError(f"Existing plan must have sport {sport}")
         return validate_plan(plan)
     if plan.get("schema_version") != "1.0" or plan.get("sport") != sport:
         raise ValueError(f"Existing plan must have schema_version 1.0 and sport {sport}")

@@ -16,6 +16,8 @@ from garminconnect import (
 )
 from garminconnect.workout import (
     CustomHeartRateTarget,
+    CustomPowerTarget,
+    CyclingWorkout,
     PaceTarget,
     RunningWorkout,
     WorkoutSegment,
@@ -29,6 +31,7 @@ from garminconnect.workout import (
 
 TOKEN_DIR = Path.home() / ".garminconnect"
 SPORT = {"sportTypeId": 1, "sportTypeKey": "running"}
+CYCLING_SPORT = {"sportTypeId": 2, "sportTypeKey": "cycling"}
 STEP_TYPES = {"warmup", "run", "interval", "recovery", "cooldown"}
 
 
@@ -96,15 +99,21 @@ def validate_steps(steps, where, depth=0):
         validate_step(step, f"{where}[{index}]", depth)
 
 
-def load_plan(path):
+def read_plan(path):
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise InputError(f"Cannot read JSON plan: {exc}") from exc
-    return validate_plan(data)
+    return data
+
+
+def load_plan(path):
+    return validate_plan(read_plan(path))
 
 
 def validate_plan(data):
+    if isinstance(data, dict) and data.get("sport") == "cycling":
+        return validate_cycling_plan(data)
     fields(data, {"schema_version", "sport", "timezone", "units", "workouts"}, set(), "plan")
     if data["schema_version"] != "1.0" or data["sport"] != "running":
         raise InputError("Only schema_version 1.0 and sport running are supported")
@@ -144,11 +153,50 @@ def validate_plan(data):
     return workouts
 
 
+def validate_cycling_plan(data):
+    fields(data, {"schema_version", "sport", "workouts"}, set(), "cycling plan")
+    if data["schema_version"] != "1.0":
+        raise InputError("Cycling plan schema_version must be 1.0")
+    workouts = data["workouts"]
+    if not isinstance(workouts, list) or not workouts:
+        raise InputError("workouts must be a nonempty list")
+    names = set()
+    for workout in workouts:
+        fields(workout, {"name", "total_duration_seconds", "steps"}, {"scheduled_date"}, "cycling workout")
+        name = workout["name"]
+        if not isinstance(name, str) or not name.strip() or name in names:
+            raise InputError("Cycling workout names must be nonempty and unique")
+        names.add(name)
+        if "scheduled_date" in workout:
+            day = workout["scheduled_date"]
+            if not isinstance(day, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", day):
+                raise InputError("scheduled_date must be YYYY-MM-DD")
+            date.fromisoformat(day)
+        steps = workout["steps"]
+        if not isinstance(steps, list) or not steps:
+            raise InputError("Cycling steps must be a nonempty list")
+        for step in steps:
+            fields(step, {"type", "duration_seconds", "effort"}, {"power_watts"}, "cycling step")
+            if step["type"] not in ("warmup", "ride", "recovery", "cooldown"):
+                raise InputError("Cycling step type must be warmup, ride, recovery or cooldown")
+            positive(step["duration_seconds"], "cycling step duration_seconds")
+            if not isinstance(step["effort"], str) or not step["effort"].strip():
+                raise InputError("Cycling step effort must be nonempty text")
+            if "power_watts" in step:
+                watts = step["power_watts"]
+                fields(watts, {"min", "max"}, set(), "power_watts")
+                if positive(watts["min"], "minimum watts") > positive(watts["max"], "maximum watts"):
+                    raise InputError("Maximum watts must be at least minimum watts")
+        if positive(workout["total_duration_seconds"], "total_duration_seconds") != duration(steps):
+            raise InputError("Cycling total_duration_seconds does not match the steps")
+    return workouts
+
+
 def duration(steps):
     return sum(step["count"] * duration(step["steps"]) if step["type"] == "repeat" else step["duration_seconds"] for step in steps)
 
 
-def build_workout(source):
+def build_workout(source, *, sport="running"):
     order = 0
 
     def convert(steps):
@@ -172,7 +220,10 @@ def build_workout(source):
                 )
             elif target is not None and target["type"] == "heart_rate":
                 intensity = CustomHeartRateTarget(lower_limit=target["min_bpm"], upper_limit=target["max_bpm"])
-            if kind in {"run", "interval"}:
+            if "power_watts" in step:
+                watts = step["power_watts"]
+                intensity = CustomPowerTarget(lower_limit=watts["min"], upper_limit=watts["max"])
+            if kind in {"run", "interval", "ride"}:
                 item = create_targeted_interval_step(seconds, current_order, target=intensity) if intensity else create_interval_step(seconds, current_order)
             else:
                 helper = {"warmup": create_warmup_step, "recovery": create_recovery_step, "cooldown": create_cooldown_step}[kind]
@@ -181,16 +232,18 @@ def build_workout(source):
                     item.targetType = {"workoutTargetTypeId": intensity.target_type, "workoutTargetTypeKey": intensity.target_type_key, "displayOrder": 1}
                     item.targetValueOne = intensity.lower_limit
                     item.targetValueTwo = intensity.upper_limit
-            if "description" in step:
-                item.description = step["description"]
+            description = step.get("effort", step.get("description"))
+            if description:
+                item.description = description
             result.append(item)
         return result
 
-    return RunningWorkout(
+    model, segment_sport = (CyclingWorkout, CYCLING_SPORT) if sport == "cycling" else (RunningWorkout, SPORT)
+    return model(
         workoutName=source["name"],
         description=source.get("description"),
         estimatedDurationInSecs=math.ceil(duration(source["steps"])),
-        workoutSegments=[WorkoutSegment(segmentOrder=1, sportType=SPORT, workoutSteps=convert(source["steps"]))],
+        workoutSegments=[WorkoutSegment(segmentOrder=1, sportType=segment_sport, workoutSteps=convert(source["steps"]))],
     )
 
 
@@ -249,7 +302,7 @@ def existing_schedule(api, dates):
     return found
 
 
-def upload_plan(api, workouts, schedule=False):
+def upload_plan(api, workouts, schedule=False, *, sport="running"):
     library = existing_workouts(api)
     dates = [workout["scheduled_date"] for workout in workouts if "scheduled_date" in workout] if schedule else []
     calendar = existing_schedule(api, dates) if dates else set()
@@ -264,7 +317,8 @@ def upload_plan(api, workouts, schedule=False):
                 raise RuntimeError(f"Existing workout {name!r} has no ID")
             print(f"Already uploaded: {name} (ID {workout_id}); skipping upload")
         else:
-            result = api.upload_running_workout(build_workout(source))
+            upload = api.upload_cycling_workout if sport == "cycling" else api.upload_running_workout
+            result = upload(build_workout(source, sport=sport))
             workout_id = result.get("workoutId") if isinstance(result, dict) else None
             if not workout_id:
                 raise RuntimeError(f"Upload of {name!r} returned no workoutId; check Garmin before retrying")
@@ -295,14 +349,16 @@ def main(argv=None):
         if args.login:
             authenticate()
             return 0
-        workouts = load_plan(args.plan)
+        plan = read_plan(args.plan)
+        workouts = validate_plan(plan)
+        sport = plan["sport"]
         for source in workouts:
-            build_workout(source)  # validate conversion before any remote writes
+            build_workout(source, sport=sport)  # validate conversion before any remote writes
         if args.dry_run:
             for source in workouts:
                 print(f"DRY RUN: {source['name']} ({duration(source['steps'])} seconds)" + (f"; schedule {source['scheduled_date']}" if args.schedule and "scheduled_date" in source else ""))
             return 0
-        upload_plan(authenticate(), workouts, args.schedule)
+        upload_plan(authenticate(), workouts, args.schedule, sport=sport)
         return 0
     except (InputError, ValueError, OSError, RuntimeError, EOFError,
             GarminConnectAuthenticationError, GarminConnectConnectionError,

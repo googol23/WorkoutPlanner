@@ -20,5 +20,6 @@ a unique `name`, `total_duration_seconds`, and ordered `steps`. Each step
 has `type` (`warmup`, `ride`, `recovery`, or `cooldown`),
 `duration_seconds`, and an `effort` cue. Add `power_watts` as
 `{"min": ..., "max": ...}` only if supported by the inputs. List repeated
-steps explicitly and check that their sum matches the duration. This plan
-is for manual use.
+steps explicitly and check that their sum matches the duration. Include a
+`scheduled_date` in YYYY-MM-DD format only when requested and known. Preview
+the resulting file with the Garmin uploader's `--dry-run`.

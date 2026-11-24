@@ -2,7 +2,7 @@
 
 - **Current support:** Completed running activities can be exported by recent count or activity ID. Structured workouts can be validated, uploaded and optionally scheduled.
 - **Verification:** The offline suite and the uploader dry-run pass with the pinned Garmin dependency. A live mixed-sport export succeeded.
-- **Next:** Verify live Garmin upload and confirm the workout in Garmin Connect.
+- **Next:** Live upload and duplicate-name handling passed. Optional scheduling remains unverified.
 - **Evidence and decisions:** See the running skill and evidence register below.
 
 ## Filtered sync
@@ -33,7 +33,7 @@ The [output contract](../../skills/workout-planner/references/running-output.md)
 keeps the rationale separate from Garmin-ready JSON.
 
 A local live retry of the mixed-sport export succeeded after the activity type
-fix. Live upload is the next acceptance check.
+fix. The athlete confirmed live upload and duplicate-name handling.
 
 ## ChatGPT handoff
 

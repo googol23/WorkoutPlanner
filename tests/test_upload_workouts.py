@@ -31,6 +31,8 @@ library.GarminConnectConnectionError = type("GarminConnectConnectionError", (Exc
 library.GarminConnectTooManyRequestsError = type("GarminConnectTooManyRequestsError", (Exception,), {})
 workout = types.ModuleType("garminconnect.workout")
 workout.RunningWorkout = Model
+workout.CyclingWorkout = Model
+workout.CustomPowerTarget = type("CustomPowerTarget", (Model,), {"target_type": 2, "target_type_key": "power.zone"})
 workout.WorkoutSegment = Model
 workout.PaceTarget = type("PaceTarget", (Model,), {"target_type": 6, "target_type_key": "pace.zone"})
 workout.CustomHeartRateTarget = type("CustomHeartRateTarget", (Model,), {"target_type": 3, "target_type_key": "heart.rate.zone"})
@@ -108,6 +110,31 @@ class UploadTests(unittest.TestCase):
         module.upload_plan(api, self.plan, schedule=True)
         api.upload_running_workout.assert_called_once()
         api.schedule_workout.assert_called_once()
+
+    def test_cycling_upload_and_duplicate_skip(self):
+        plan = {"schema_version": "1.0", "sport": "cycling", "workouts": [{
+            "name": "Easy ride", "total_duration_seconds": 900,
+            "steps": [{"type": "ride", "duration_seconds": 900, "effort": "easy",
+                       "power_watts": {"min": 110, "max": 140}}],
+        }]}
+        workouts = module.validate_plan(plan)
+        api = Mock()
+        api.get_workouts.return_value = []
+        api.upload_cycling_workout.return_value = {"workoutId": 5}
+        module.upload_plan(api, workouts, sport="cycling")
+        sent = api.upload_cycling_workout.call_args.args[0]
+        segment = sent.workoutSegments[0]
+        self.assertEqual(segment.sportType["sportTypeId"], 2)
+        step = segment.workoutSteps[0]
+        self.assertEqual((step.target.lower_limit, step.target.upper_limit), (110, 140))
+        self.assertEqual(step.description, "easy")
+        api.get_workouts.return_value = [{"workoutName": "Easy ride", "workoutId": 5}]
+        module.upload_plan(api, workouts, sport="cycling")
+        api.upload_cycling_workout.assert_called_once()
+        api.upload_running_workout.assert_not_called()
+        plan["workouts"][0]["steps"][0]["power_watts"]["min"] = 150
+        with self.assertRaisesRegex(module.InputError, "Maximum watts"):
+            module.validate_plan(plan)
 
     def test_unknown_calendar_refuses_write(self):
         api = Mock()

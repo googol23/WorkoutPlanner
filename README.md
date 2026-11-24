@@ -152,8 +152,8 @@ Once the workout file exists, validate it offline with the Garmin uploader:
 python upload_workouts.py next_workout.json --dry-run
 ```
 
-Cycling and strength outputs use their own formats for manual training.
-The Garmin uploader currently accepts running workout JSON.
+Cycling uses its own timed-step format and can also be previewed and uploaded
+with the Garmin uploader. Strength plans are for manual use.
 
 ## Generate directly with your ChatGPT account
 
@@ -179,7 +179,7 @@ the Codex subprocess and uses an ephemeral Codex session. Review the data
 in the planning input before running it. The command prints the rationale,
 checks the response against the selected sport, and writes
 `next_workout.json` only when a workout is returned and passes validation.
-Running uses the uploader's full validation. Cycling and strength plans
+Running and cycling use the uploader's full validation. Strength plans
 receive basic format and sport checks and are for manual use.
 
 The generator also accepts `--existing-plan` and `--workout-name` together
@@ -206,3 +206,19 @@ The prompt indicates that activity coverage is partial.
 If the athlete notes or selected workout still cause the prompt to exceed the
 budget, shorten them and rerun. The generator checks the size before calling
 Codex. Existing exports and planning inputs work with the new prompt builder.
+
+### Preview a cycling workout
+
+Build planning input with `--activity-type cycling` and generate the workout
+to a separate file:
+
+```bash
+python build_planning_input.py --activities all_activities.json --athlete athlete.json --activity-type cycling > planning_input.json &&
+python generate_next_workout.py --planning-input planning_input.json --output next_workout.json &&
+python upload_workouts.py next_workout.json --dry-run
+```
+
+Cycling steps carry an effort cue and may include a supported watt range.
+After reviewing the preview, use the same uploader without `--dry-run`
+to create the Garmin workout. Scheduling is optional with `--schedule` and
+an explicit `scheduled_date` on the workout.
