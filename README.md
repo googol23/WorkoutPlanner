@@ -139,7 +139,7 @@ python build_chatgpt_prompt.py --planning-input planning_input.json \
 ```
 
 Review `workout_prompt.md` before pasting it into ChatGPT. It contains the
-athlete context and full activity history, plus the selected workout when
+athlete context and a compact activity history, plus the selected workout when
 adjusting a plan. The command runs offline. Keep the generated prompt and the
 personal inputs out of Git.
 
@@ -193,3 +193,16 @@ python upload_workouts.py next_workout.json --dry-run
 If Codex generation fails, rerun the generator with `--debug` to see
 the CLI error. Review the diagnostics before sharing them. The generator
 keeps an existing workout file intact when generation fails.
+
+### Prompt size
+
+Both prompt paths use the same 24 KB UTF-8 budget, including sport instructions
+and evidence. They start with the 12 newest exported activities and drop the
+oldest summaries if needed. They keep selected summary metrics, zone totals,
+the first six available splits, available exercise-set summaries, and brief
+per-session feedback. Raw chart samples stay in your local planning input.
+The prompt indicates that activity coverage is partial.
+
+If the athlete notes or selected workout still cause the prompt to exceed the
+budget, shorten them and rerun. The generator checks the size before calling
+Codex. Existing exports and planning inputs work with the new prompt builder.

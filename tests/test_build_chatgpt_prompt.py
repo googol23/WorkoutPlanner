@@ -33,8 +33,57 @@ class ChatGPTPromptTests(unittest.TestCase):
         self.assertIn("running evidence register", prompt)
         self.assertIn("10.1519/R-19725.1", prompt)
         self.assertIn("total_duration_seconds", prompt)
-        self.assertEqual(json.loads(prompt.split("\n# Input data\n", 1)[1]),
-                         {"planning_input": self.planning_input})
+        bundled = json.loads(prompt.split("\n# Input data\n", 1)[1])["planning_input"]
+        self.assertEqual(bundled["athlete"], self.planning_input["athlete"])
+        self.assertEqual(bundled["activity_history"]["activities"],
+                         self.planning_input["activity_history"]["activities"])
+        self.assertEqual(bundled["activity_history"]["exported_activity_count"], 1)
+
+    def test_large_export_keeps_recent_metrics_without_raw_samples(self):
+        recent = {
+            "activity_id": 50, "activity_date": "2026-11-29 10:00:00",
+            "summary": {"activityTypeDTO": {"typeKey": "cycling"},
+                        "summaryDTO": {"averagePower": 170, "duration": 1800}},
+            "time_series": {"samples": [{"raw_sample": "x" * 1600}] * 4000},
+            "power_zones": [{"zone": 2, "secsInZone": 700}],
+            "subjective_feedback": {"perceived_effort": 5},
+            "unavailable_fields": ["weather"],
+        }
+        history = self.planning_input["activity_history"]
+        history["activities"] = [{"activity_id": i, "activity_date": "2026-11-01",
+                                  "summary": {"duration": 900}} for i in range(1, 26)]
+        history["activities"].append(recent)
+        self.assertGreater(len(json.dumps(history)), 6_000_000)
+        prompt = handoff.build_prompt(self.planning_input)
+        self.assertLess(len(prompt.encode("utf-8")), 24_000)
+        self.assertNotIn("raw_sample", prompt)
+        compact = json.loads(prompt.split("\n# Input data\n", 1)[1])["planning_input"]["activity_history"]
+        self.assertEqual(compact["exported_activity_count"], 26)
+        self.assertEqual(len(compact["activities"]), 12)
+        first = compact["activities"][0]
+        self.assertEqual(first["activity_id"], 50)
+        self.assertEqual(first["activity_type"], "cycling")
+        self.assertEqual(first["summary"], {"duration": 1800, "averagePower": 170})
+        self.assertEqual(first["power_zones"], [{"zone": 2, "secsInZone": 700}])
+        self.assertEqual(first["subjective_feedback"], {"perceived_effort": 5})
+        self.assertEqual(first["unavailable_fields"], ["weather"])
+
+    def test_budget_drops_older_records_before_rejecting_long_athlete_notes(self):
+        self.planning_input["activity_history"]["activities"] = [
+            {"activity_id": i, "summary": {"duration": 900},
+             "subjective_feedback": {"comments": "😀" * 600}}
+            for i in range(1, 13)
+        ]
+        self.planning_input["athlete"]["goals"] = "é" * 6500
+        prompt = handoff.build_prompt(self.planning_input)
+        self.assertLessEqual(len(prompt.encode("utf-8")), handoff.MAX_PROMPT_BYTES)
+        compact = json.loads(prompt.split("\n# Input data\n", 1)[1])["planning_input"]["activity_history"]
+        self.assertGreater(len(compact["activities"]), 0)
+        self.assertLess(len(compact["activities"]), 12)
+
+        self.planning_input["athlete"]["goals"] = "é" * 13000
+        with self.assertRaisesRegex(ValueError, "Prompt exceeds 24 KB"):
+            handoff.build_prompt(self.planning_input)
 
     def test_adjustment_includes_only_requested_workout(self):
         plan = json.loads(self.plan_path.read_text(encoding="utf-8"))
