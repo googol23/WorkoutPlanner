@@ -2,11 +2,10 @@
 
 ## Baseline
 
-The repository has a running workout uploader with dry-run and optional
-scheduling, plus a read-only exporter for completed runs by count or activity ID.
-The exported JSON keeps Garmin metrics returned by the queried endpoints, subject
-to privacy filtering and the sampling limits of the detail endpoint. There is
-no WorkoutPlanner skill or ChatGPT handoff yet.
+WorkoutPlanner syncs completed Garmin activities and generates or adjusts
+running, cycling, and gym strength workouts through ChatGPT-authenticated
+Codex. Each supported sport has a research-backed subskill. The uploader
+validates, previews, uploads, and optionally schedules the resulting plans.
 
 Work through one milestone at a time. Keep each change in a focused Git commit
 with a local verification command and record which checks need a Garmin account.
@@ -20,9 +19,12 @@ with a local verification command and record which checks need a Garmin account.
 | 5. ChatGPT handoff | Assemble the skill instructions, target activity type, goals, constraints, recent activity metrics, feedback and optional existing plan into a reviewable package for ChatGPT. Include a versioned output contract with a workout, rationale and source references. | Use sanitized data to generate a running workout in ChatGPT, validate its workout JSON and preview it with the uploader. Test generation and adjustment paths. |
 | 6. Upload and local acceptance | Run the complete loop for running. Verify which structured workout types Garmin supports and extend upload adapters where supported. Document any manual handoff required for an unsupported workout type. Keep scheduling explicit. | Locally verify export, ChatGPT output, dry-run, upload and optional scheduling. Check duplicate behavior with approved account access. |
 
-The initial handoff is manual so the athlete can review the prompt and activity
-data before sharing it. Start with the running uploader as the end-to-end path,
-then add sports as their metric coverage and Garmin workout support are verified.
+## Local acceptance status
+
+Running upload and duplicate detection passed on a live account. Cycling's
+live retry found the existing workout and skipped the duplicate. The athlete
+reported that the strength workflow passed locally. Live calendar scheduling
+and its duplicate check are the remaining acceptance checks.
 
 ## Activity context
 

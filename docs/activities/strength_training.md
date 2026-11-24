@@ -7,7 +7,6 @@ to generate or adjust a structured gym session.
 
 Use recent sets, reps, loads and units when Garmin provides them. Add exercise
 history, available equipment and effort in athlete context when needed.
-Live structured Garmin upload still needs verification.
 
 ## Exercise-set sync
 
@@ -21,7 +20,8 @@ exercise names, rep counts and load units where returned. The athlete confirmed 
 The adapter uses the pinned Garmin catalog and typed strength workout model.
 It converts sets, rep targets, timed rest, and optional loads. Offline tests
 cover conversion, unknown exercise rejection, and duplicate-name handling.
-Live strength upload remains to be checked.
+The athlete reported that the local generation, dry-run and upload workflow
+passed. Live calendar scheduling remains to be checked.
 
 A live generation produced a plan with the common name “Glute Bridge.”
 The adapter now resolves it to Garmin's “Hip Raise” entry and suggests catalog
