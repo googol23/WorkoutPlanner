@@ -22,3 +22,7 @@ The adapter uses the pinned Garmin catalog and typed strength workout model.
 It converts sets, rep targets, timed rest, and optional loads. Offline tests
 cover conversion, unknown exercise rejection, and duplicate-name handling.
 Live strength upload remains to be checked.
+
+A live generation produced a plan with the common name “Glute Bridge.”
+The adapter now resolves it to Garmin's “Hip Raise” entry and suggests catalog
+matches for other unknown names. Suggestions require manual selection.

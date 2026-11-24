@@ -24,7 +24,7 @@ def step(kind):
     return build
 
 
-from workoutplanner.garmin.strength import build_strength_workout
+from workoutplanner.garmin.strength import build_strength_workout, resolve_exercise
 from workoutplanner.workout_schema import load_plan
 
 
@@ -139,6 +139,11 @@ class UploadTests(unittest.TestCase):
         plan["workouts"][0]["steps"][0]["power_watts"]["min"] = 150
         with self.assertRaisesRegex(module.InputError, "Maximum watts"):
             module.validate_plan(plan)
+
+    def test_strength_resolves_glute_bridge_and_suggests_catalog_names(self):
+        self.assertEqual(resolve_exercise("Glute Bridge"), resolve_exercise("Hip Raise"))
+        with self.assertRaisesRegex(module.InputError, "Catalog matches:.*Goblet Squat"):
+            resolve_exercise("Goblet Squats")
 
     def test_strength_conversion_and_upload(self):
         plan = {"schema_version": "1.0", "sport": "strength_training", "workouts": [{

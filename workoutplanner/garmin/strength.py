@@ -1,8 +1,9 @@
 """Convert validated gym plans to typed Garmin strength workouts."""
 
 import math
+from difflib import get_close_matches
 
-from garminconnect.exercises import resolve
+from garminconnect.exercises import BY_NAME, resolve
 from garminconnect.workout import (
     StrengthWorkout,
     WorkoutSegment,
@@ -13,13 +14,21 @@ from garminconnect.workout import (
 from workoutplanner.workout_schema import InputError
 
 
+def resolve_exercise(name):
+    # Garmin uses “Hip Raise” for the standard floor glute bridge.
+    catalog_name = "Hip Raise" if name.strip().casefold() == "glute bridge" else name
+    entry = resolve(catalog_name)
+    if entry is not None:
+        return entry
+    suggestions = get_close_matches(name, BY_NAME, n=3, cutoff=0.6)
+    hint = f" Catalog matches: {', '.join(suggestions)}." if suggestions else ""
+    raise InputError(f"Unknown Garmin exercise name {name!r}; use an exact catalog name.{hint}")
+
+
 def build_strength_workout(source):
     steps = []
     for exercise in source["exercises"]:
-        name = exercise["name"]
-        entry = resolve(name)
-        if entry is None:
-            raise InputError(f"Unknown Garmin exercise name {name!r}; use an exact catalog name")
+        entry = resolve_exercise(exercise["name"])
         reps = exercise["reps"]
         load = exercise.get("load")
         weight_kg = None if load is None else load["value"] * (0.45359237 if load["unit"] == "lb" else 1)

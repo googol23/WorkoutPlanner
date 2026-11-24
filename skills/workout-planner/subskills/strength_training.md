@@ -23,7 +23,7 @@ has a unique `name`, `estimated_duration_seconds`, a `warmup` cue and
 an ordered `exercises` array. Use exact Garmin exercise display names. Verified
 examples include Goblet Squat, Dumbbell Lunge, Leg Press, Dumbbell Bench Press,
 Barbell Bench Press, Push-up, Dumbbell Row, Seated Cable Row, Dumbbell Shoulder
-Press and Dumbbell Biceps Curl. Favor a matching catalog exercise the athlete
+Press, Dumbbell Biceps Curl and Hip Raise (floor glute bridge). Favor a matching catalog exercise the athlete
 can perform with their equipment. Each exercise has a `name`, positive whole
 `sets`, a `reps` object with whole `min` and `max`, `rest_seconds`,
 and an `effort` cue. Include optional `load: {"value": ..., "unit": "kg"}`
