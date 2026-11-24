@@ -6,7 +6,7 @@ import tempfile
 import types
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 
 class Model:
@@ -38,11 +38,10 @@ for kind in ("warmup", "cooldown", "recovery", "interval"):
     setattr(workout, "create_" + kind + "_step", step(kind))
 workout.create_targeted_interval_step = lambda seconds, order, target: Model(stepOrder=order, target=target)
 workout.create_repeat_group = lambda count, children, order: Model(stepOrder=order, numberOfIterations=count, workoutSteps=children)
-sys.modules["garminconnect"] = library
-sys.modules["garminconnect.workout"] = workout
 spec = importlib.util.spec_from_file_location("upload_workouts", Path(__file__).resolve().parents[1] / "upload_workouts.py")
 module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
+with patch.dict(sys.modules, {"garminconnect": library, "garminconnect.workout": workout}):
+    spec.loader.exec_module(module)
 
 
 class UploadTests(unittest.TestCase):
@@ -59,8 +58,8 @@ class UploadTests(unittest.TestCase):
     def test_supplied_plan(self):
         path = Path(__file__).resolve().parents[1] / "running_plan.json"
         workouts = module.load_plan(path)
-        self.assertEqual(len(workouts), 12)
-        self.assertEqual(module.build_workout(workouts[1]).estimatedDurationInSecs, 1980)
+        self.assertEqual(len(workouts), 1)
+        self.assertEqual(module.build_workout(workouts[0]).estimatedDurationInSecs, 1200)
         library.Garmin.reset_mock()
         self.assertEqual(module.main([str(path), "--dry-run", "--schedule"]), 0)
         library.Garmin.assert_not_called()

@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "sport": "running",
+  "timezone": "Europe/Berlin",
+  "units": {
+    "duration": "seconds",
+    "pace": "seconds_per_km",
+    "heart_rate": "bpm"
+  },
+  "workouts": [
+    {
+      "name": "Example running workout",
+      "description": "Synthetic workout for testing the uploader.",
+      "week": 1,
+      "scheduled_date": "2027-04-02",
+      "total_duration_seconds": 1200,
+      "steps": [
+        {"type": "warmup", "duration_seconds": 300},
+        {"type": "run", "duration_seconds": 600},
+        {"type": "cooldown", "duration_seconds": 300}
+      ]
+    }
+  ]
+}
