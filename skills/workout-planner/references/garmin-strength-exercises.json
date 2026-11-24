@@ -1,0 +1,7 @@
+{
+  "squat_and_lunge": ["Goblet Squat", "Dumbbell Lunge", "Dumbbell Bulgarian Split Squat", "Leg Press", "Banded Squat"],
+  "hip_hinge_and_extension": ["Romanian Deadlift", "Single-leg Romanian Deadlift with Dumbbell", "Hip Raise", "Weighted Hip Raise", "Barbell Hip Thrust with Bench"],
+  "upper_body_push": ["Push-up", "Dumbbell Bench Press", "Barbell Bench Press", "Dumbbell Shoulder Press"],
+  "upper_body_pull": ["Dumbbell Row", "Seated Cable Row", "Lat Pull-down", "Face Pull", "Banded Row"],
+  "accessories": ["Dumbbell Biceps Curl", "Dumbbell Lateral Raise", "Calf Raise", "Seated Calf Raise", "Banded Hamstring Curls"]
+}

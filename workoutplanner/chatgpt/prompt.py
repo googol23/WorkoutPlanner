@@ -36,6 +36,11 @@ def build_prompt(planning_input, existing_plan=None, workout_name=None):
     history_summary = compact_history(history, sport)
     data = {"planning_input": {**validated, "activity_history": history_summary}}
 
+    if sport == "strength_training":
+        data["garmin_exercise_catalog"] = read_object(
+            SKILL_DIR / "references" / "garmin-strength-exercises.json"
+        )
+
     request = f"Generate the next workout for {sport}."
     if existing_plan is not None:
         workouts = validate_existing_plan(existing_plan, sport)

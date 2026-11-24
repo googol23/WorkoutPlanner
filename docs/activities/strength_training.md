@@ -26,3 +26,7 @@ Live strength upload remains to be checked.
 A live generation produced a plan with the common name “Glute Bridge.”
 The adapter now resolves it to Garmin's “Hip Raise” entry and suggests catalog
 matches for other unknown names. Suggestions require manual selection.
+
+The generation prompt now includes a curated list of exact Garmin exercise
+names grouped by movement. Tests verify every name against the pinned
+Garmin library. The full catalog stays local to keep the prompt small.

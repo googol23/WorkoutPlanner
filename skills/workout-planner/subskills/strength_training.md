@@ -20,11 +20,12 @@ Read the [strength training evidence register](../references/strength_training-e
 Return a standalone JSON object with `schema_version: "1.0"`,
 `sport: "strength_training"`, and a nonempty `workouts` array. Each workout
 has a unique `name`, `estimated_duration_seconds`, a `warmup` cue and
-an ordered `exercises` array. Use exact Garmin exercise display names. Verified
-examples include Goblet Squat, Dumbbell Lunge, Leg Press, Dumbbell Bench Press,
-Barbell Bench Press, Push-up, Dumbbell Row, Seated Cable Row, Dumbbell Shoulder
-Press, Dumbbell Biceps Curl and Hip Raise (floor glute bridge). Favor a matching catalog exercise the athlete
-can perform with their equipment. Each exercise has a `name`, positive whole
+an ordered `exercises` array. For each exercise `name`, copy an exact Garmin display name from
+`garmin_exercise_catalog` in the input. The [catalog reference](../references/garmin-strength-exercises.json)
+provides the same choices when running the skill directly. Use “Hip Raise”
+for the floor glute bridge. Choose exercises that match the athlete's
+equipment and goal. If the catalog offers no suitable choice, ask a focused
+question before generating a workout. Each exercise has a `name`, positive whole
 `sets`, a `reps` object with whole `min` and `max`, `rest_seconds`,
 and an `effort` cue. Include optional `load: {"value": ..., "unit": "kg"}`
 (or `"lb"`) only when the input supports it. Account for warmup, work,

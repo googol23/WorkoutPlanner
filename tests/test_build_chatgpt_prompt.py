@@ -3,6 +3,8 @@
 import json
 import tempfile
 import unittest
+
+from garminconnect.exercises import BY_NAME
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -114,6 +116,20 @@ class ChatGPTPromptTests(unittest.TestCase):
                 self.assertIn(source, prompt)
                 self.assertIn(field, prompt)
                 self.assertNotIn("10.1519/R-19725.1", prompt)
+
+    def test_strength_prompt_includes_verified_garmin_catalog(self):
+        sport = "strength_training"
+        data = {**self.planning_input, "target_activity_type": sport,
+                "athlete": {**self.planning_input["athlete"], "activity_type": sport}}
+        prompt = handoff.build_prompt(data)
+        bundled = json.loads(prompt.split("\n# Input data\n", 1)[1])
+        catalog_names = {name for group in bundled["garmin_exercise_catalog"].values() for name in group}
+        self.assertIn("Hip Raise", catalog_names)
+        self.assertGreater(len(catalog_names), 10)
+        self.assertLessEqual(catalog_names, BY_NAME.keys())
+        self.assertLessEqual(len(prompt.encode("utf-8")), handoff.MAX_PROMPT_BYTES)
+        running = handoff.build_prompt(self.planning_input)
+        self.assertNotIn("garmin_exercise_catalog", running)
 
     def test_strength_prompt_keeps_nested_exercise_names_and_units(self):
         sport = "strength_training"
