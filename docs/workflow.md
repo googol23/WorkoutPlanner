@@ -1,0 +1,93 @@
+# Workflow reference
+
+## Garmin export
+
+The exporter is read-only. Its default is the newest completed activity with
+the exact `running` type key. Use `--activity-type all` for mixed history or
+specify the exact Garmin key. Parent sport keys do not automatically include
+subtypes. Choose one of the following selectors:
+
+| Option | Behavior |
+| --- | --- |
+| `--limit N` | At most N recent matching activities |
+| `--activity-id ID` | One activity that matches the selected type |
+| `--time-range YYYY-MM-DD..YYYY-MM-DD` | Inclusive calendar dates using the local start date Garmin recorded |
+
+The default destination is `<activity-type>_activities.json`. An export is a
+snapshot with unique activity IDs. An empty match exits with an error and
+keeps the existing file. Optional feedback flags apply to all activities in
+that invocation. Use an activity ID to attach feedback to one session.
+
+The JSON contains the export timestamp, activity IDs and dates, summaries,
+splits, workout steps, zone times, weather, chart samples and feedback where
+available. Strength exports also request exercise sets. Missing data from
+optional endpoints can be reported as null with an unavailable-field marker.
+Garmin can downsample charts to its 2,000-point detail limit and available
+metrics vary by device, sport and recording. The exporter requests no route
+polyline and filters known sensitive keys. Free text and other identifiers may
+still appear. Treat exports as private.
+
+## Profiles and generation
+
+Use one profile per target. `goals` and `availability` are required text.
+Optional text fields are `constraints`, `preferences`, `recent_feedback`,
+`training_background`, `benchmarks`, and `equipment`. Cycling and strength
+require `activity_type` to match the target. Existing untagged running profiles
+remain valid. Strength also accepts `preferred_machines` and
+`preferred_exercises` as arrays of strings.
+
+Planning input schema 1.0 retains the complete exported activity history for
+local use. The model prompt uses a separate compact view. It has a 24 KB UTF-8
+budget and includes up to 12 recent summaries with up to three other-sport
+sessions for recovery context. It selects summary metrics, zones, early splits
+and up to 12 available exercise-set records per strength session. Raw chart
+samples stay local. This is partial history and missing values are unknown.
+
+The generator submits the prompt through an ephemeral `codex exec` session
+using ChatGPT sign-in. It needs network access and available account allowance.
+It prints the rationale and writes a validated workout JSON only when the
+response contains a plan. Review the output for training suitability, schedule
+and equipment. Exercise catalog resolution is checked by the uploader.
+
+To adjust a named workout, supply `--existing-plan PLAN.json --workout-name NAME`
+to either prompt builder or generator. Use `--output` to keep the generated
+plan in a separate file. For offline prompt review use:
+
+```bash
+python build_chatgpt_prompt.py --planning-input planning_input.json > workout_prompt.md
+```
+
+This command writes a prompt to standard output. For a manual ChatGPT handoff,
+save the returned workout object by itself before calling the uploader.
+
+## Upload formats and limits
+
+| Sport | Plan reference | Conversion |
+| --- | --- | --- |
+| Running | [Output contract](../skills/workout-planner/references/running-output.md) and [sample plan](../running_plan.json) | Timed steps and repeats with optional pace or heart-rate targets |
+| Cycling | [Cycling subskill](../skills/workout-planner/subskills/cycling.md) | Timed steps with effort cues and optional watt ranges |
+| Strength | [Strength subskill](../skills/workout-planner/subskills/strength_training.md) | Exact Garmin exercise names, rep targets, between-set rests and optional kg or lb loads |
+
+Strength uses the lower end of a rep range as the device target. The rest of
+the range and effort cue are stored in notes. Warmup is a workout note.
+A dry-run validates JSON and conversion offline. It cannot verify Garmin
+account state or device display.
+
+Live upload deduplicates by exact workout name. It does not compare content,
+replace templates, or delete them. Duplicate names already in the library
+cause an error. Use a distinct name for a revised template. Scheduling
+requires an explicit `scheduled_date` on at least one workout. Dates are
+calendar dates, independent of the running plan's informational timezone.
+Scheduling may upload a missing template and then add the date in a separate
+request. Calendar deduplication checks workout ID and date in the relevant
+months. Concurrent writes, delayed visibility and partial failures can still
+cause inconsistent results. Check Garmin Connect before retrying.
+
+Garmin is accessed through the unofficial pinned `garminconnect` dependency.
+Service changes, rate limits, or expired tokens can interrupt operation.
+Keep its saved-token directory private, along with Codex credentials.
+Use `--debug` for Codex failures and inspect diagnostic output locally before
+sharing it. Skip live upload if generation exits without a workout.
+
+Offline tests use mocked account calls. The [roadmap](../ROADMAP.md) records
+the live checks separately.

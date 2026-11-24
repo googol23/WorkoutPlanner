@@ -37,3 +37,30 @@ Tests compare the local names with the pinned library. The strength prompt
 includes a default selection plus matches for preferred exercises, preferred
 machine names and exercises already in a workout being adjusted. The full
 catalog stays local.
+
+## Athlete profile
+
+Use `athlete_strength.json` with a matching target, your actual equipment,
+and optional exercise or machine preferences:
+
+```json
+{
+  "activity_type": "strength_training",
+  "goals": "Build general strength",
+  "availability": "30 minutes",
+  "equipment": "Leg press, cable station, dumbbells and a bench. No squat rack.",
+  "preferred_machines": ["Leg Press", "Lat Pull-down"],
+  "preferred_exercises": ["Dumbbell Bench Press", "Goblet Squat"]
+}
+```
+
+Machine matches are name-based candidates. Review the plan for equipment fit
+and review any proposed load. Garmin receives the lower rep target, with the
+full range in the step note. The warmup is a workout note.
+
+```bash
+python build_planning_input.py --activities strength_activities.json \
+  --athlete athlete_strength.json --activity-type strength_training > strength_input.json &&
+python generate_next_workout.py --planning-input strength_input.json --output next_strength.json &&
+python upload_workouts.py next_strength.json --dry-run
+```

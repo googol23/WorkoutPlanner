@@ -1,18 +1,10 @@
 # Bouldering
 
-- **Current support:** The exporter accepts Garmin activity type keys. Bouldering-specific mapping and workout planning are pending.
-- **Next:** Check whether Garmin distinguishes bouldering from other indoor climbing. Record which metrics can be exported and which inputs need to come from the athlete.
-- **Evidence and decisions:** Record verified API behavior, reviewed sources and the planning rules they support as the bouldering skill is developed.
+Bouldering is export-only in this release. A live mixed Garmin export included
+an activity with the exact key `bouldering`. Use that key when your account
+records it. If your device labels the activity differently, export with
+`--activity-type all` and inspect the returned keys.
 
-## Filtered sync
-
-Use `--activity-type all` to inspect the Garmin type recorded for climbing
-activities, then select that exact key. Whether the account reports bouldering
-as a distinct type still needs a live check.
-
-## Planning input
-
-Use `bouldering` as the target even when past sessions are labeled indoor
-climbing. The builder preserves recorded session metrics and missing fields.
-Use athlete notes for attempts, grades and recent feedback if those details
-are absent from the export.
+Session summaries and available metrics can be exported. Attempts, grades,
+and effort may require a separate log. The supported WorkoutPlanner generation
+and Garmin workout upload targets are running, cycling, and strength.
