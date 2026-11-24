@@ -173,6 +173,19 @@ class UploadTests(unittest.TestCase):
             self.assertEqual(module.main([str(path), "--dry-run"]), 1)
             auth.assert_not_called()
 
+    def test_schedule_requires_a_date_before_authentication(self):
+        plan = {"schema_version": "1.0", "sport": "strength_training", "workouts": [{
+            "name": "Gym test", "estimated_duration_seconds": 900, "warmup": "Warm up",
+            "exercises": [{"name": "Goblet Squat", "sets": 2, "reps": {"min": 8, "max": 10},
+                           "rest_seconds": 60, "effort": "Easy"}],
+        }]}
+        with tempfile.TemporaryDirectory() as folder, patch.object(module, "authenticate") as auth:
+            path = Path(folder) / "strength.json"
+            path.write_text(json.dumps(plan), encoding="utf-8")
+            self.assertEqual(module.main([str(path), "--schedule", "--dry-run"]), 1)
+            self.assertEqual(module.main([str(path), "--schedule"]), 1)
+            auth.assert_not_called()
+
     def test_unknown_calendar_refuses_write(self):
         api = Mock()
         api.get_workouts.return_value = []

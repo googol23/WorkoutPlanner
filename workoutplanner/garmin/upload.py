@@ -173,6 +173,8 @@ def main(argv=None):
         plan = read_plan(args.plan)
         workouts = validate_plan(plan)
         sport = plan["sport"]
+        if args.schedule and not any("scheduled_date" in workout for workout in workouts):
+            raise InputError("--schedule requires at least one workout with scheduled_date (YYYY-MM-DD)")
         for source in workouts:
             build_workout(source, sport=sport)  # validate conversion before any remote writes
         if args.dry_run:
