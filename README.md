@@ -189,3 +189,7 @@ Review a generated running workout with:
 ```bash
 python upload_workouts.py next_workout.json --dry-run
 ```
+
+If Codex generation fails, rerun the generator with `--debug` to see
+the CLI error. Review the diagnostics before sharing them. The generator
+keeps an existing workout file intact when generation fails.

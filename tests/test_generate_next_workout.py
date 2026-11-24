@@ -55,6 +55,16 @@ class GenerationTests(unittest.TestCase):
                     self.assertEqual(generator.main(self.args), exit_code)
                 self.assertEqual(self.output.read_text(), "existing")
 
+    def test_debug_reports_cli_error_and_preserves_file(self):
+        self.output.write_text("existing", encoding="utf-8")
+        status = subprocess.CompletedProcess([], 0, "", "Logged in using ChatGPT")
+        failed = subprocess.CompletedProcess([], 1, "", "Error: example CLI failure")
+        with patch.object(generator.subprocess, "run", side_effect=[status, failed]):
+            with redirect_stderr(StringIO()) as error:
+                self.assertEqual(generator.main([*self.args, "--debug"]), 1)
+        self.assertIn("Error: example CLI failure", error.getvalue())
+        self.assertEqual(self.output.read_text(), "existing")
+
     def test_api_key_login_is_rejected_before_sending_prompt(self):
         result = subprocess.CompletedProcess([], 0, "", "Logged in using an API key")
         with patch.object(generator.subprocess, "run", return_value=result) as run:

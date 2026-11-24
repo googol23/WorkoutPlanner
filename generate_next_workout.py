@@ -32,7 +32,7 @@ Use only the provided input and evidence. Do not run commands or access files.
 """
 
 
-def run_codex(prompt):
+def run_codex(prompt, *, debug=False):
     env = {key: value for key, value in os.environ.items()
            if not key.lower().endswith("_proxy") and key != "OPENAI_API_KEY"}
     status = subprocess.run(
@@ -51,12 +51,16 @@ def run_codex(prompt):
              "--sandbox", "read-only", "--ignore-user-config",
              "-c", 'approval_policy="never"',
              "-c", 'forced_login_method="chatgpt"', "-c", 'web_search="disabled"',
+             "-c", f"sqlite_home={json.dumps(str(workdir))}",
+             "-c", f"log_dir={json.dumps(str(workdir))}",
              "--output-schema", str(schema), "--output-last-message", str(response), "-"],
             cwd=workdir, env=env, input=RESPONSE_INSTRUCTIONS + prompt,
             capture_output=True, text=True, encoding="utf-8", timeout=300,
         )
         if result.returncode:
-            raise ValueError(f"Codex generation failed (exit {result.returncode}); check login and quota")
+            if debug and result.stderr:
+                print(result.stderr.rstrip(), file=sys.stderr)
+            raise ValueError(f"Codex generation failed (exit {result.returncode}); rerun with --debug for CLI diagnostics")
         return read_object(response)
 
 
@@ -78,6 +82,7 @@ def main(argv=None):
     parser.add_argument("--existing-plan", type=Path)
     parser.add_argument("--workout-name")
     parser.add_argument("--output", type=Path, default=Path("next_workout.json"))
+    parser.add_argument("--debug", action="store_true", help="show Codex stderr on failure")
     args = parser.parse_args(argv)
     if (args.existing_plan is None) != (args.workout_name is None):
         parser.error("--existing-plan and --workout-name must be supplied together")
@@ -88,7 +93,7 @@ def main(argv=None):
     try:
         planning_input = read_object(args.planning_input)
         existing_plan = read_object(args.existing_plan) if args.existing_plan else None
-        response = run_codex(build_prompt(planning_input, existing_plan, args.workout_name))
+        response = run_codex(build_prompt(planning_input, existing_plan, args.workout_name), debug=args.debug)
         rationale = response.get("rationale")
         if not isinstance(rationale, str) or not rationale.strip() or "workout_json" not in response:
             raise ValueError("Codex returned an invalid workout response")
