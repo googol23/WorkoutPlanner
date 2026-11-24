@@ -1,6 +1,6 @@
 # Garmin Connect JSON workout uploader and activity exporter
 
-Imports running workouts from an application-level JSON file, converts them to Garmin's typed running workout format, and optionally schedules them. The separate read-only exporter downloads completed runs as JSON for external analysis. Neither tool generates plans or performs fitness analysis. Uses the unofficial [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) API; Garmin can change its service without notice.
+Imports running workouts from an application-level JSON file, converts them to Garmin's typed running workout format, and optionally schedules them. The separate read-only exporter downloads completed activities as JSON for external analysis. Neither tool generates plans or performs fitness analysis. Uses the unofficial [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) API; Garmin can change its service without notice.
 
 ## Setup (Python 3.12+)
 
@@ -30,7 +30,7 @@ python upload_workouts.py running_plan.json --schedule
 
 Login uses a terminal email/password prompt (password hidden), and prompts for an MFA code if requested. It first tries reusable tokens in `~/.garminconnect/garmin_tokens.json`; the library restricts local token permissions. Keep the token store private and outside version control. Never pass passwords or tokens in command-line arguments. Network access to Garmin is required for all non-dry-run commands.
 
-## Export completed running activities
+## Export completed activities
 
 From the same installed environment and project directory:
 
@@ -43,6 +43,26 @@ python download_activities.py --perceived-effort 7 --fatigue "tired" --pain "non
 ```
 
 The default file is `running_activities.json`. The exporter reuses the uploader's saved-token login (and prompts if tokens are missing/expired). It pages through Garmin's running activity list, checks each selected activity is a completed run, and never modifies Garmin account data. `--activity-id` and `--limit` are mutually exclusive. If fewer runs are available, it exports those found; if none are found it fails without writing a file.
+
+To sync a date range or select another sport:
+
+```bash
+python download_activities.py --time-range 2026-11-16..2026-11-23 --activity-type cycling
+python download_activities.py --activity-type all --limit 10 --output recent_activities.json
+```
+
+`--time-range` includes both calendar dates using the local start date recorded
+by Garmin for each activity. It is mutually exclusive with `--limit` and
+`--activity-id`. Garmin's date query handles pagination. Within each export,
+repeated activity IDs are emitted once. The output is a snapshot and replaces
+the target file when results are available. If no matching activities are
+found, the command exits with an error and leaves any existing file intact.
+
+`--activity-type` defaults to `running` and accepts `all` or an exact Garmin
+`activityType.typeKey` from the activity summary. A parent sport key does not
+automatically select its subtypes. Use `all` and inspect the reported type keys
+when a subtype is unknown. The default output is `<activity-type>_activities.json`,
+including `all_activities.json` for mixed sports.
 
 The single JSON document has `schema_version`, UTC `exported_at`, and `activities`. Each activity includes `activity_id`, `activity_name`, `activity_date`, `summary`, `splits`, `workout_steps`, `heart_rate_zones`, `power_zones`, `time_series`, `weather`, `subjective_feedback`, and `unavailable_fields`. Original metric values, timestamps, and units are retained where returned. `time_series` pairs Garmin metric descriptors (including units when provided) with sample values keyed by descriptor name. Garmin's default detail chart limit is 2,000 points, so longer runs may have downsampled series; the exporter requests no route polyline. Optional endpoints returning no data or 404 yield `null` and a name in `unavailable_fields`; other API failures stop the export. Feedback is optional: `--perceived-effort` must be 1–10; `--fatigue`, `--pain`, and `--comments` accept text and apply to every exported run. For individual feedback per run, export each run separately.
 

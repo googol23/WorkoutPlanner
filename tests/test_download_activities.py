@@ -102,6 +102,62 @@ class DownloadTests(unittest.TestCase):
             self.assertEqual([a["activity_id"] for a in json.loads(output.read_text())["activities"]], [42, 41])
             api.get_activities.assert_any_call(start=0, limit=20, activitytype="running")
 
+    def test_range_exports_inclusive_local_dates_for_exact_type(self):
+        api = self.api()
+        first = run(42, "cycling", startTimeLocal="2026-11-20 00:00:00",
+                    startTimeGMT="2026-11-19 23:00:00")
+        last = run(43, "cycling", startTimeLocal="2026-11-23 23:59:59")
+        api.get_activities_by_date.return_value = [
+            run(50, "cycling", startTimeLocal="2026-11-24 00:00:00"),
+            last, first, {**first, "activityId": "42"},
+            run(44, "cycling", startTimeLocal="2026-11-19 23:59:59"),
+            run(45, "cycling", inProgress=True), run(46, "indoor_cycling"),
+        ]
+        api.get_activity.side_effect = {"42": first, "43": last}.__getitem__
+        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "authenticate", return_value=api):
+            output = Path(tmp) / "rides.json"
+            args = ["--time-range", "2026-11-20..2026-11-23",
+                    "--activity-type", "cycling", "--output", str(output)]
+            self.assertEqual(exporter.main(args), 0)
+            self.assertEqual([a["activity_id"] for a in json.loads(output.read_text())["activities"]], [43, 42])
+        api.get_activities_by_date.assert_called_once_with("2026-11-20", "2026-11-23")
+        api.get_activities.assert_not_called()
+
+    def test_all_types_with_limit_deduplicates_across_pages(self):
+        api = self.api()
+        api.get_activities.side_effect = [
+            [run(42, "cycling")] + [run(42, "cycling")] * 19,
+            [run("42", "cycling"), run(41, "indoor_climbing")],
+        ]
+        activities = exporter.recent_activities(api, 2, "all")
+        self.assertEqual([item["activityId"] for item in activities], [42, 41])
+        api.get_activities.assert_called_with(start=20, limit=20, activitytype=None)
+
+    def test_invalid_selection_is_rejected_before_login(self):
+        with patch.object(exporter, "authenticate") as authenticate:
+            for args in (
+                ["--time-range", "2026-11-23..2026-11-20"],
+                ["--time-range", "2026-02-30..2026-03-01"],
+                ["--time-range", "2026-11-20"],
+                ["--time-range", "2026-11-20..2026-11-23", "--limit", "2"],
+                ["--activity-type", "../cycling"],
+            ):
+                with self.subTest(args=args), self.assertRaises(SystemExit) as error:
+                    exporter.main(args)
+                self.assertEqual(error.exception.code, 2)
+            authenticate.assert_not_called()
+
+    def test_empty_range_leaves_existing_output_intact(self):
+        api = self.api()
+        api.get_activities_by_date.return_value = [run(42, "walking")]
+        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "authenticate", return_value=api):
+            output = Path(tmp) / "existing.json"
+            output.write_text("existing", encoding="utf-8")
+            self.assertEqual(exporter.main(["--time-range", "2026-11-23..2026-11-23",
+                                            "--output", str(output)]), 1)
+            self.assertEqual(output.read_text(encoding="utf-8"), "existing")
+        api.get_activity.assert_not_called()
+
     def test_specific_id_rejects_other_sports_and_no_output(self):
         api = self.api()
         api.get_activity.return_value = run(42, "cycling")

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Export completed Garmin runs as privacy-filtered JSON for offline analysis."""
+"""Export completed Garmin activities as privacy-filtered JSON for offline analysis."""
 
 import argparse
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from garminconnect import (
@@ -38,30 +38,71 @@ def safe(value):
     return value
 
 
-def is_run(activity):
-    kind = activity.get("activityType") or {}
-    return isinstance(kind, dict) and kind.get("typeKey") == "running"
+def matches_type(activity, activity_type):
+    kind = activity.get("activityType")
+    key = kind.get("typeKey") if isinstance(kind, dict) else None
+    return isinstance(key, str) and bool(key) and (activity_type == "all" or key == activity_type)
+
+
+def collect_activities(page, activity_type, seen, bounds=None):
+    if not isinstance(page, list):
+        raise RuntimeError("Unexpected Garmin activities list response")
+    for item in page:
+        if not isinstance(item, dict):
+            raise RuntimeError("Unexpected Garmin activity entry")
+        activity_id = item.get("activityId")
+        if not activity_id or item.get("inProgress") or not matches_type(item, activity_type):
+            continue
+        if bounds:
+            local_start = item.get("startTimeLocal")
+            if not isinstance(local_start, str):
+                raise RuntimeError(f"Missing local start time for activity {activity_id}")
+            if not bounds[0] <= datetime.fromisoformat(local_start).date() <= bounds[1]:
+                continue
+        if str(activity_id) not in seen:
+            seen.add(str(activity_id))
+            yield item
+
+
+def recent_activities(api, limit, activity_type):
+    activities = []
+    seen = set()
+    start = 0
+    page_size = 20
+    # The existing running command uses Garmin's server-side running filter.
+    server_type = "running" if activity_type == "running" else None
+    while True:
+        page = api.get_activities(start=start, limit=page_size, activitytype=server_type)
+        for item in collect_activities(page, activity_type, seen):
+            activities.append(item)
+            if len(activities) == limit:
+                return activities
+        if len(page) < page_size:
+            return activities
+        start += len(page)
 
 
 def recent_runs(api, limit):
-    runs = []
-    start = 0
-    page_size = 20
-    while len(runs) < limit:
-        page = api.get_activities(start=start, limit=page_size, activitytype="running")
-        if not isinstance(page, list):
-            raise RuntimeError("Unexpected Garmin activities list response")
-        for item in page:
-            if not isinstance(item, dict):
-                raise RuntimeError("Unexpected Garmin activity entry")
-            if is_run(item) and item.get("activityId") and not item.get("inProgress"):
-                runs.append(item)
-                if len(runs) == limit:
-                    break
-        if len(page) < page_size:
-            break
-        start += len(page)
-    return runs
+    return recent_activities(api, limit, "running")
+
+
+def activities_in_range(api, bounds, activity_type):
+    start, end = bounds
+    page = api.get_activities_by_date(start.isoformat(), end.isoformat())
+    return list(collect_activities(page, activity_type, set(), bounds))
+
+
+def parse_time_range(value):
+    parts = value.split("..")
+    if len(parts) != 2 or any(not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", part) for part in parts):
+        raise argparse.ArgumentTypeError("use YYYY-MM-DD..YYYY-MM-DD")
+    try:
+        start, end = map(date.fromisoformat, parts)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("time range dates must be valid calendar dates") from exc
+    if start > end:
+        raise argparse.ArgumentTypeError("time range start must be on or before its end")
+    return start, end
 
 
 def series(details):
@@ -105,14 +146,15 @@ def optional(api, method, activity_id, unavailable, **kwargs):
     return result
 
 
-def export_activity(api, listing, feedback=None):
+def export_activity(api, listing, feedback=None, *, activity_type="running"):
     activity_id = listing["activityId"]
     unavailable = []
     summary = api.get_activity(str(activity_id))
     if not isinstance(summary, dict):
         raise RuntimeError(f"Unexpected activity summary for {activity_id}")
-    if not is_run(summary) or summary.get("inProgress"):
-        raise RuntimeError(f"Activity {activity_id} is not a completed running activity")
+    if not matches_type(summary, activity_type) or summary.get("inProgress"):
+        description = "activity" if activity_type == "all" else f"{activity_type} activity"
+        raise RuntimeError(f"Activity {activity_id} is not a completed {description}")
     details = optional(api, "get_activity_details", str(activity_id), unavailable, maxpoly=0)
     time_series = series(details)
     if time_series is None:
@@ -149,9 +191,13 @@ def feedback_from_args(args):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     selection = parser.add_mutually_exclusive_group()
-    selection.add_argument("--limit", type=int, default=1, help="number of recent completed runs")
-    selection.add_argument("--activity-id", type=int, help="export one completed running activity")
-    parser.add_argument("--output", default="running_activities.json", help="output JSON path")
+    selection.add_argument("--limit", type=int, default=1, help="number of recent completed activities")
+    selection.add_argument("--activity-id", type=int, help="export one completed activity")
+    selection.add_argument("--time-range", type=parse_time_range, metavar="START..END",
+                           help="inclusive activity-local dates, in YYYY-MM-DD format")
+    parser.add_argument("--activity-type", default="running", metavar="KEY",
+                        help="exact Garmin type key or all (default: running)")
+    parser.add_argument("--output", help="output JSON path (default: <activity-type>_activities.json)")
     parser.add_argument("--perceived-effort", type=int, help="perceived effort from 1 to 10")
     parser.add_argument("--fatigue", help="optional fatigue notes")
     parser.add_argument("--pain", help="optional pain notes")
@@ -159,23 +205,33 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.limit < 1 or args.activity_id is not None and args.activity_id < 1:
         parser.error("--limit and --activity-id must be positive")
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", args.activity_type):
+        parser.error("--activity-type must be a lowercase Garmin type key or all")
     if args.perceived_effort is not None and not 1 <= args.perceived_effort <= 10:
         parser.error("--perceived-effort must be from 1 to 10")
     try:
         api = authenticate()
-        listings = ([{"activityId": args.activity_id}] if args.activity_id is not None
-                    else recent_runs(api, args.limit))
+        if args.activity_id is not None:
+            listings = [{"activityId": args.activity_id}]
+        elif args.time_range:
+            listings = activities_in_range(api, args.time_range, args.activity_type)
+        else:
+            listings = recent_activities(api, args.limit, args.activity_type)
         if not listings:
-            raise RuntimeError("No completed running activities found")
+            description = "activities" if args.activity_type == "all" else f"{args.activity_type} activities"
+            raise RuntimeError(f"No completed {description} found")
         feedback = feedback_from_args(args)
         result = {
             "schema_version": "1.0",
             "exported_at": datetime.now(timezone.utc).isoformat(),
-            "activities": [export_activity(api, item, feedback) for item in listings],
+            "activities": [
+                export_activity(api, item, feedback, activity_type=args.activity_type)
+                for item in listings
+            ],
         }
-        output = Path(args.output)
+        output = Path(args.output or f"{args.activity_type}_activities.json")
         output.write_text(json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
-        print(f"Exported {len(result['activities'])} run(s) to {output}")
+        print(f"Exported {len(result['activities'])} activity record(s) to {output}")
         return 0
     except (OSError, ValueError, RuntimeError, EOFError,
             GarminConnectAuthenticationError, GarminConnectConnectionError,
