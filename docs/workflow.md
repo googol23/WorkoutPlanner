@@ -40,13 +40,14 @@ Planning input schema 1.0 retains the complete exported activity history for
 local use. The model prompt uses a separate compact view. It has a 24 KB UTF-8
 budget and includes up to 12 recent summaries with up to three other-sport
 sessions for recovery context. It selects summary metrics, zones, early splits
-and up to 12 available exercise-set records per strength session. Raw chart
+and up to 12 available exercise-set records per strength session. It sends
+session numbers and calendar dates in place of Garmin IDs and exact timestamps. Raw chart
 samples stay local. This is partial history and missing values are unknown.
 
 The generator submits the prompt through an ephemeral `codex exec` session
 using ChatGPT sign-in. It needs network access and available account allowance.
-It prints the rationale and writes a validated workout JSON only when the
-response contains a plan. Review the output for training suitability, schedule
+It saves the rationale beside the workout as `<output>.rationale.txt` and
+writes a validated workout JSON only when the response contains a plan. Review the output for training suitability, schedule
 and equipment. Exercise catalog resolution is checked by the uploader.
 
 To adjust a named workout, supply `--existing-plan PLAN.json --workout-name NAME`
@@ -54,10 +55,10 @@ to either prompt builder or generator. Use `--output` to keep the generated
 plan in a separate file. For offline prompt review use:
 
 ```bash
-python build_chatgpt_prompt.py --planning-input planning_input.json > workout_prompt.md
+python build_chatgpt_prompt.py --planning-input planning_input.json --output workout_prompt.md
 ```
 
-This command writes a prompt to standard output. For a manual ChatGPT handoff,
+Without `--output`, this command writes the prompt to standard output. For a manual ChatGPT handoff,
 save the returned workout object by itself before calling the uploader.
 
 ## Upload formats and limits
@@ -80,14 +81,25 @@ requires an explicit `scheduled_date` on at least one workout. Dates are
 calendar dates, independent of the running plan's informational timezone.
 Scheduling may upload a missing template and then add the date in a separate
 request. Calendar deduplication checks workout ID and date in the relevant
-months. Concurrent writes, delayed visibility and partial failures can still
+months. A local lock serializes uploader processes using the same Garmin token directory.
+Writes from other machines, delayed visibility and partial failures can still
 cause inconsistent results. Check Garmin Connect before retrying.
 
 Garmin is accessed through the unofficial pinned `garminconnect` dependency.
 Service changes, rate limits, or expired tokens can interrupt operation.
 Keep its saved-token directory private, along with Codex credentials.
-Use `--debug` for Codex failures and inspect diagnostic output locally before
-sharing it. Skip live upload if generation exits without a workout.
+Use `--debug` for Codex failures. It saves CLI stderr beside the workout as
+`<output>.debug.txt` instead of sending it to the terminal. Inspect it locally
+before sharing. The Codex subprocess inherits only an allowlist of runtime
+environment settings. It still runs under your OS account, so keep account
+credentials outside directories available to an automated model process. Skip live upload if generation exits without a workout.
 
 Offline tests use mocked account calls. The [roadmap](../ROADMAP.md) records
 the live checks separately.
+
+## Dependency verification
+
+Bootstrap uses a hash-locked wheel set for x86-64 Linux with CPython 3.12.
+Other platforms use pinned constraints and wheels. Hashes verify the
+downloaded files against the repository lock. Dependency advisory checks
+remain a separate step.

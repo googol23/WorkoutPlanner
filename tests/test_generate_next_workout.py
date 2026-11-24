@@ -32,6 +32,7 @@ class GenerationTests(unittest.TestCase):
         def codex(command, **options):
             self.assertFalse(any(key.lower().endswith("_proxy") for key in options["env"]))
             self.assertNotIn("OPENAI_API_KEY", options["env"])
+            self.assertNotIn("GARMIN_REFRESH_TOKEN", options["env"])
             if command[1:3] == ["login", "status"]:
                 return subprocess.CompletedProcess(command, 0, "", "Logged in using ChatGPT")
             self.assertIn("Generate the next workout for running", options["input"])
@@ -40,11 +41,15 @@ class GenerationTests(unittest.TestCase):
             path.write_text(json.dumps({"rationale": "Example", "workout_json": json.dumps(self.plan)}))
             return subprocess.CompletedProcess(command, 0, "", "")
 
-        with patch.dict(generator.os.environ, {"HTTPS_PROXY": "http://proxy.invalid",
-                                              "OPENAI_API_KEY": "unused"}):
+        with redirect_stdout(StringIO()) as wired_output, patch.dict(generator.os.environ, {"HTTPS_PROXY": "http://proxy.invalid",
+                                              "OPENAI_API_KEY": "unused", "GARMIN_REFRESH_TOKEN": "unused"}):
             with patch.object(generator.subprocess, "run", side_effect=codex):
                 self.assertEqual(generator.main(self.args), 0)
         self.assertEqual(json.loads(self.output.read_text()), self.plan)
+        self.assertNotIn("Example", wired_output.getvalue())
+        self.assertEqual(self.output.with_suffix(".json.rationale.txt").read_text(), "Example\n")
+        if generator.os.name == "posix":
+            self.assertEqual(self.output.stat().st_mode & 0o777, 0o600)
 
     def test_no_workout_and_invalid_workout_leave_existing_output_intact(self):
         self.output.write_text("existing", encoding="utf-8")
@@ -62,7 +67,8 @@ class GenerationTests(unittest.TestCase):
         with patch.object(generator.subprocess, "run", side_effect=[status, failed]):
             with redirect_stderr(StringIO()) as error:
                 self.assertEqual(generator.main([*self.args, "--debug"]), 1)
-        self.assertIn("Error: example CLI failure", error.getvalue())
+        self.assertNotIn("Error: example CLI failure", error.getvalue())
+        self.assertIn("Error: example CLI failure", self.output.with_suffix(".json.debug.txt").read_text())
         self.assertEqual(self.output.read_text(), "existing")
 
     def test_api_key_login_is_rejected_before_sending_prompt(self):

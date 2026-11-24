@@ -7,10 +7,11 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from tempfile import NamedTemporaryFile, TemporaryDirectory
+from tempfile import TemporaryDirectory
 
 from workoutplanner.chatgpt.prompt import build_prompt, validate_existing_plan
 from workoutplanner.planning_input import read_object
+from workoutplanner.private_io import write_private
 
 
 RESPONSE_SCHEMA = {
@@ -32,9 +33,17 @@ Use only the provided input and evidence. Do not run commands or access files.
 """
 
 
-def run_codex(prompt, *, debug=False):
+CODEX_ENV_KEYS = {
+    "PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "WINDIR", "APPDATA", "LOCALAPPDATA",
+    "CODEX_HOME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "TEMP", "TMP",
+    "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS",
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "CODEX_CA_CERTIFICATE",
+}
+
+
+def run_codex(prompt, *, debug_file=None):
     env = {key: value for key, value in os.environ.items()
-           if not key.lower().endswith("_proxy") and key != "OPENAI_API_KEY"}
+           if key.upper() in CODEX_ENV_KEYS}
     status = subprocess.run(
         ["codex", "login", "status"], env=env, capture_output=True, text=True, timeout=15,
     )
@@ -58,22 +67,11 @@ def run_codex(prompt, *, debug=False):
             capture_output=True, text=True, encoding="utf-8", timeout=300,
         )
         if result.returncode:
-            if debug and result.stderr:
-                print(result.stderr.rstrip(), file=sys.stderr)
+            if debug_file and result.stderr:
+                write_private(debug_file, result.stderr)
+                print(f"Codex diagnostics saved to {debug_file}", file=sys.stderr)
             raise ValueError(f"Codex generation failed (exit {result.returncode}); rerun with --debug for CLI diagnostics")
         return read_object(response)
-
-
-def save_workout(path, workout):
-    contents = json.dumps(workout, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
-    with NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as stream:
-        temp_path = Path(stream.name)
-        try:
-            stream.write(contents)
-            stream.close()
-            temp_path.replace(path)
-        finally:
-            temp_path.unlink(missing_ok=True)
 
 
 def main(argv=None):
@@ -82,25 +80,29 @@ def main(argv=None):
     parser.add_argument("--existing-plan", type=Path)
     parser.add_argument("--workout-name")
     parser.add_argument("--output", type=Path, default=Path("next_workout.json"))
-    parser.add_argument("--debug", action="store_true", help="show Codex stderr on failure")
+    parser.add_argument("--debug", action="store_true", help="save Codex stderr to a private file on failure")
     args = parser.parse_args(argv)
     if (args.existing_plan is None) != (args.workout_name is None):
         parser.error("--existing-plan and --workout-name must be supplied together")
-    if any(path is not None and path.resolve() == args.output.resolve()
+    rationale_file = args.output.with_suffix(args.output.suffix + ".rationale.txt")
+    debug_file = args.output.with_suffix(args.output.suffix + ".debug.txt") if args.debug else None
+    destinations = {path.resolve() for path in (args.output, rationale_file, debug_file) if path}
+    if any(path is not None and path.resolve() in destinations
            for path in (args.planning_input, args.existing_plan)):
         parser.error("--output must be different from the input files")
 
     try:
         planning_input = read_object(args.planning_input)
         existing_plan = read_object(args.existing_plan) if args.existing_plan else None
-        response = run_codex(build_prompt(planning_input, existing_plan, args.workout_name), debug=args.debug)
+        response = run_codex(build_prompt(planning_input, existing_plan, args.workout_name), debug_file=debug_file)
         rationale = response.get("rationale")
         if not isinstance(rationale, str) or not rationale.strip() or "workout_json" not in response:
             raise ValueError("Codex returned an invalid workout response")
         raw_workout = response["workout_json"]
-        print(rationale)
+        write_private(rationale_file, rationale + "\n")
+        print(f"Rationale saved to {rationale_file}")
         if raw_workout is None:
-            print("No workout was written. Review the response above.", file=sys.stderr)
+            print("No workout was written. Review the saved response.", file=sys.stderr)
             return 2
         if not isinstance(raw_workout, str):
             raise ValueError("Codex returned invalid workout JSON")
@@ -108,7 +110,7 @@ def main(argv=None):
         if not isinstance(workout, dict):
             raise ValueError("The workout must be a JSON object")
         validate_existing_plan(workout, planning_input["target_activity_type"])
-        save_workout(args.output, workout)
+        write_private(args.output, json.dumps(workout, indent=2, ensure_ascii=False, allow_nan=False) + "\n")
         print(f"Saved {args.output}")
         return 0
     except FileNotFoundError as exc:

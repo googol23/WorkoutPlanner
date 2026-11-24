@@ -6,6 +6,8 @@ import json
 import sys
 from pathlib import Path
 
+from workoutplanner.private_io import write_private
+
 from workoutplanner.planning_input import build_input, read_object
 from workoutplanner.chatgpt.history import compact_history
 from workoutplanner.chatgpt.strength_catalog import select_catalog
@@ -80,13 +82,20 @@ def main(argv=None):
     parser.add_argument("--planning-input", required=True, type=Path, help="versioned planning input JSON")
     parser.add_argument("--existing-plan", type=Path, help="existing workout plan JSON")
     parser.add_argument("--workout-name", help="exact name of the workout to adjust")
+    parser.add_argument("--output", type=Path, help="write a private output file instead of stdout")
     args = parser.parse_args(argv)
+    if args.output and any(path and path.resolve() == args.output.resolve() for path in (args.planning_input, args.existing_plan)):
+        parser.error("--output must be different from the input files")
     if (args.existing_plan is None) != (args.workout_name is None):
         parser.error("--existing-plan and --workout-name must be supplied together")
     try:
         planning_input = read_object(args.planning_input)
         existing_plan = read_object(args.existing_plan) if args.existing_plan else None
-        print(build_prompt(planning_input, existing_plan, args.workout_name))
+        rendered = build_prompt(planning_input, existing_plan, args.workout_name)
+        if args.output:
+            write_private(args.output, rendered + "\n")
+        else:
+            print(rendered)
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

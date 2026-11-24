@@ -1,5 +1,6 @@
 """Select bounded activity context for a workout-generation prompt."""
 
+from datetime import date
 from itertools import islice
 
 
@@ -22,7 +23,7 @@ METRICS = (
     "averageStrideLength", "groundContactTime", "verticalOscillation",
     "totalSets", "activeSets", "totalReps", "totalVolume",
     "aerobicTrainingEffect", "anaerobicTrainingEffect", "activityTrainingLoad",
-    "startTimeLocal", "startTimeGMT", "temperature", "averageTemperature",
+    "temperature", "averageTemperature",
 )
 ZONE_FIELDS = ("zone", "zoneNumber", "secsInZone", "secondsInZone", "zoneLowBoundary",
                "zoneHighBoundary", "lowerBoundary", "upperBoundary")
@@ -83,7 +84,10 @@ def summarize_activity(activity):
     summary = activity["summary"]
     metrics = select_scalars(summary, METRICS)
     metrics.update(select_scalars(summary.get("summaryDTO"), METRICS))
-    result = select_scalars(activity, ("activity_id", "activity_date"))
+    result = {}
+    day = calendar_day(activity_date(activity))
+    if day:
+        result["activity_date"] = day
     key = activity_type_key(activity)
     if key:
         result["activity_type"] = key
@@ -128,6 +132,13 @@ def activity_date(activity):
     return ""
 
 
+def calendar_day(value):
+    try:
+        return date.fromisoformat(value[:10]).isoformat()
+    except ValueError:
+        return None
+
+
 def compact_history(history, sport):
     activities = history["activities"]
     recent = sorted(activities, key=activity_date, reverse=True)
@@ -142,13 +153,14 @@ def compact_history(history, sport):
     selected_other = other[:MAX_OTHER_ACTIVITIES]
     selected = target[:MAX_ACTIVITIES - len(selected_other)] + selected_other
     summaries = []
-    for activity in selected:
+    for number, activity in enumerate(selected, start=1):
         summary = summarize_activity(activity)
+        summary["session"] = number
         summary["history_role"] = "target_sport" if summary.get("activity_type") in sport_keys else "other"
         summaries.append(summary)
     return {
         "schema_version": history["schema_version"],
-        "exported_at": history["exported_at"],
+        "exported_on": calendar_day(history["exported_at"]),
         "exported_activity_count": len(activities),
         "target_activity_count": len(target),
         "activities": summaries,

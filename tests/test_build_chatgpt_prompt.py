@@ -39,7 +39,7 @@ class ChatGPTPromptTests(unittest.TestCase):
         bundled = json.loads(prompt.split("\n# Input data\n", 1)[1])["planning_input"]
         self.assertEqual(bundled["athlete"], self.planning_input["athlete"])
         self.assertEqual(bundled["activity_history"]["activities"], [
-            {"activity_id": 42, "summary": {"duration": 1200},
+            {"session": 1, "summary": {"duration": 1200},
              "activity_type": "running", "history_role": "target_sport"},
         ])
         self.assertEqual(bundled["activity_history"]["exported_activity_count"], 1)
@@ -70,7 +70,10 @@ class ChatGPTPromptTests(unittest.TestCase):
         self.assertEqual(compact["target_activity_count"], 1)
         self.assertEqual(compact["activities"][1]["history_role"], "other")
         first = compact["activities"][0]
-        self.assertEqual(first["activity_id"], 50)
+        self.assertEqual(first["session"], 1)
+        self.assertEqual(first["activity_date"], "2026-11-29")
+        self.assertNotIn("activity_id", first)
+        self.assertNotIn("exported_at", compact)
         self.assertEqual(first["activity_type"], "cycling")
         self.assertEqual(first["summary"], {"duration": 1800, "averagePower": 170})
         self.assertEqual(first["power_zones"], [{"zone": 2, "secsInZone": 700}])

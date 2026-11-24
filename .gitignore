@@ -19,3 +19,9 @@ token
 /next_ride.json
 /strength_input.json
 /next_strength.json
+
+# Private workflow files
+/private/
+/next_*_scheduled.json
+*.json.rationale.txt
+*.json.debug.txt

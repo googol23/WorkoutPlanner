@@ -25,10 +25,10 @@ source .venv/bin/activate
 ```
 
 Bootstrap installs system prerequisites through APT, creates the environment,
-installs the pinned `garminconnect[workout]==0.3.20` dependency and Codex if
-missing, and runs offline tests. It disables proxies for its network commands.
+installs the pinned `garminconnect[workout]==0.3.20` dependency, and runs
+offline tests. Pass `--install-codex` to opt in to the official Codex installer. It disables proxies for its network commands.
 Use `--skip-os` with preinstalled dependencies or `--skip-codex` for Garmin
-only. On systems with an older default Python, set `WORKOUTPLANNER_PYTHON` to
+only (the default). On systems with an older default Python, set `WORKOUTPLANNER_PYTHON` to
 an installed Python 3.12+ interpreter. Other platforms can install the Python
 dependencies with `python -m pip install -r requirements.txt`.
 
@@ -69,7 +69,7 @@ Create `athlete.json` for running and use your own goal and time budget:
 
 ```bash
 python build_planning_input.py --activities all_activities.json \
-  --athlete athlete.json --activity-type running > planning_input.json &&
+  --athlete athlete.json --activity-type running --output planning_input.json &&
 python generate_next_workout.py --planning-input planning_input.json &&
 python upload_workouts.py next_workout.json --dry-run
 ```
@@ -98,8 +98,10 @@ direct python upload_workouts.py next_workout.json --schedule
 
 An exact existing workout name is skipped. Scheduling also skips an existing
 workout ID and date pair. Check Garmin Connect before retrying an ambiguous
-failure. Keep credentials, athlete profiles, exports, prompts and generated
-plans out of Git.
+failure. Keep credentials and personal files out of Git. Use an ignored `private/`
+directory for custom filenames. Choose `--output` on the input and prompt
+builders for atomic private files on POSIX. The generator saves rationale
+beside the workout instead of printing it.
 
 ## Repository layout
 

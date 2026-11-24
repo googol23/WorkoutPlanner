@@ -186,6 +186,16 @@ class UploadTests(unittest.TestCase):
             self.assertEqual(module.main([str(path), "--schedule"]), 1)
             auth.assert_not_called()
 
+    def test_live_upload_lock_rejects_concurrent_call_and_releases(self):
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            with module.upload_lock(directory):
+                with self.assertRaisesRegex(RuntimeError, "local Garmin upload lock"):
+                    with module.upload_lock(directory):
+                        self.fail("second lock unexpectedly acquired")
+            with module.upload_lock(directory):
+                pass
+
     def test_unknown_calendar_refuses_write(self):
         api = Mock()
         api.get_workouts.return_value = []

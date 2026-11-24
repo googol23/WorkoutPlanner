@@ -3,6 +3,8 @@
 
 import argparse
 import math
+import sqlite3
+from contextlib import contextmanager
 import sys
 from datetime import date
 
@@ -25,7 +27,7 @@ from garminconnect.workout import (
     create_warmup_step,
 )
 
-from workoutplanner.garmin.auth import authenticate
+from workoutplanner.garmin.auth import TOKEN_DIR, authenticate
 from workoutplanner.garmin.strength import build_strength_workout
 from workoutplanner.workout_schema import InputError, duration, read_plan, validate_plan
 SPORT = {"sportTypeId": 1, "sportTypeKey": "running"}
@@ -118,6 +120,20 @@ def existing_schedule(api, dates):
     return found
 
 
+@contextmanager
+def upload_lock(directory):
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    connection = sqlite3.connect(directory / "upload-lock.sqlite3", timeout=0)
+    try:
+        try:
+            connection.execute("BEGIN EXCLUSIVE")
+        except sqlite3.OperationalError as exc:
+            raise RuntimeError("Cannot acquire the local Garmin upload lock; check for another upload") from exc
+        yield
+    finally:
+        connection.close()
+
+
 def upload_plan(api, workouts, schedule=False, *, sport="running"):
     library = existing_workouts(api)
     dates = [workout["scheduled_date"] for workout in workouts if "scheduled_date" in workout] if schedule else []
@@ -139,7 +155,11 @@ def upload_plan(api, workouts, schedule=False, *, sport="running"):
                 "strength_training": "upload_strength_workout",
             }[sport]
             upload = getattr(api, upload_name)
-            result = upload(build_workout(source, sport=sport))
+            model = build_workout(source, sport=sport)
+            try:
+                result = upload(model)
+            except (GarminConnectConnectionError, OSError) as exc:
+                raise RuntimeError("Upload outcome is uncertain. Check Garmin Connect before retrying.") from exc
             workout_id = result.get("workoutId") if isinstance(result, dict) else None
             if not workout_id:
                 raise RuntimeError(f"Upload of {name!r} returned no workoutId; check Garmin before retrying")
@@ -150,7 +170,10 @@ def upload_plan(api, workouts, schedule=False, *, sport="running"):
             if key in calendar:
                 print(f"Already scheduled: {name} on {source['scheduled_date']}")
             else:
-                api.schedule_workout(workout_id, source["scheduled_date"])
+                try:
+                    api.schedule_workout(workout_id, source["scheduled_date"])
+                except (GarminConnectConnectionError, OSError) as exc:
+                    raise RuntimeError("Scheduling outcome is uncertain. Check the Garmin calendar before retrying.") from exc
                 calendar.add(key)
                 print(f"Scheduled: {name} on {source['scheduled_date']}")
 
@@ -183,7 +206,8 @@ def main(argv=None):
                            else duration(source["steps"]))
                 print(f"DRY RUN: {source['name']} ({seconds} seconds)" + (f"; schedule {source['scheduled_date']}" if args.schedule and "scheduled_date" in source else ""))
             return 0
-        upload_plan(authenticate(), workouts, args.schedule, sport=sport)
+        with upload_lock(TOKEN_DIR):
+            upload_plan(authenticate(), workouts, args.schedule, sport=sport)
         return 0
     except (InputError, ValueError, OSError, RuntimeError, EOFError,
             GarminConnectAuthenticationError, GarminConnectConnectionError,

@@ -14,6 +14,7 @@ from garminconnect import (
 )
 
 from workoutplanner.garmin.auth import authenticate
+from workoutplanner.private_io import write_private
 
 
 # Drop structured identity, location and credential data at every nesting level.
@@ -250,7 +251,7 @@ def main(argv=None):
             ],
         }
         output = Path(args.output or f"{args.activity_type}_activities.json")
-        output.write_text(json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8")
+        write_private(output, json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False) + "\n")
         print(f"Exported {len(result['activities'])} activity record(s) to {output}")
         return 0
     except (OSError, ValueError, RuntimeError, EOFError,

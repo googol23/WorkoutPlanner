@@ -3,13 +3,14 @@
 set -euo pipefail
 
 install_os=true
-install_codex=true
+install_codex=false
 for arg in "$@"; do
     case "$arg" in
         --skip-os) install_os=false ;;
+        --install-codex) install_codex=true ;;
         --skip-codex) install_codex=false ;;
         -h|--help)
-            printf '%s\n' 'Usage: bash setup/bootstrap.sh [--skip-os] [--skip-codex]'
+            printf '%s\n' 'Usage: bash setup/bootstrap.sh [--skip-os] [--install-codex|--skip-codex]'
             exit 0 ;;
         *) printf 'Unknown option: %s\n' "$arg" >&2; exit 2 ;;
     esac
@@ -43,10 +44,17 @@ if ! "$python_bin" -c 'import sys; raise SystemExit(sys.version_info < (3, 12))'
     exit 1
 fi
 "$python_bin" -m venv "$venv_dir"
-PIP_CONFIG_FILE=/dev/null "$venv_dir/bin/python" -m pip install -r "$repo_dir/setup/requirements-garmin.txt"
+requirements="$repo_dir/setup/requirements-garmin.txt"
+if "$venv_dir/bin/python" -c 'import platform, sys; raise SystemExit(not (platform.python_implementation() == "CPython" and sys.version_info[:2] == (3, 12) and sys.platform == "linux" and platform.machine() == "x86_64"))'; then
+    requirements="$repo_dir/setup/requirements-linux-x86_64-py312.lock"
+fi
+PIP_CONFIG_FILE=/dev/null "$venv_dir/bin/python" -m pip install --only-binary=:all: -r "$requirements"
 
 if "$install_codex" && ! command -v codex >/dev/null; then
-    curl -fsSL https://chatgpt.com/codex/install.sh | sh
+    codex_installer=$(mktemp)
+    trap 'rm -f -- "$codex_installer"' EXIT
+    curl -fsSL --proto '=https' --proto-redir '=https' https://chatgpt.com/codex/install.sh -o "$codex_installer"
+    sh "$codex_installer"
 fi
 
 (cd -- "$repo_dir" && "$venv_dir/bin/python" -m unittest discover -s tests)

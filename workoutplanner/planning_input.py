@@ -7,6 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+from workoutplanner.private_io import write_private
+
 
 STRENGTH_PREFERENCES = ("preferred_machines", "preferred_exercises")
 
@@ -72,13 +74,20 @@ def main(argv=None):
     parser.add_argument("--activities", required=True, type=Path, help="Garmin activity export JSON")
     parser.add_argument("--athlete", required=True, type=Path, help="athlete context JSON")
     parser.add_argument("--activity-type", required=True, metavar="KEY", help="target activity type")
+    parser.add_argument("--output", type=Path, help="write a private output file instead of stdout")
     args = parser.parse_args(argv)
+    if args.output and any(path and path.resolve() == args.output.resolve() for path in (args.activities, args.athlete)):
+        parser.error("--output must be different from the input files")
     if not re.fullmatch(r"[a-z][a-z0-9_]*", args.activity_type) or args.activity_type == "all":
         parser.error("--activity-type must name a single target activity type")
 
     try:
         planning_input = build_input(read_object(args.activities), read_object(args.athlete), args.activity_type)
-        print(json.dumps(planning_input, indent=2, ensure_ascii=False, allow_nan=False))
+        rendered = json.dumps(planning_input, indent=2, ensure_ascii=False, allow_nan=False)
+        if args.output:
+            write_private(args.output, rendered + "\n")
+        else:
+            print(rendered)
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

@@ -26,7 +26,7 @@ the athlete wants to plan.
 2. Compare reported effort and recovery with training history. Retain source
    units, account for conditions that affect comparison, and treat missing
    metrics as unknown. Avoid treating a count-limited export as a complete
-   week. Use dates or IDs for the observations that shaped the decision.
+   week. Use dates or session numbers for the observations that shaped the decision.
 3. Generate a single next session by default. When adjusting an existing
    session, preserve its purpose where appropriate and explain changes.
    Stay within the time budget and equipment available. Ask a focused
