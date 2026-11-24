@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.garminconnect/
+garmin_tokens.json
+oauth1_token.json
+oauth2_token.json
+token
