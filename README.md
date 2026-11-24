@@ -197,8 +197,8 @@ keeps an existing workout file intact when generation fails.
 ### Prompt size
 
 Both prompt paths use the same 24 KB UTF-8 budget, including sport instructions
-and evidence. They start with the 12 newest exported activities and drop the
-oldest summaries if needed. They keep selected summary metrics, zone totals,
+and evidence. They keep up to 12 recent summaries, prioritizing the target sport and
+including up to three other activities for recovery context. They keep selected summary metrics, zone totals,
 the first six available splits, available exercise-set summaries, and brief
 per-session feedback. Raw chart samples stay in your local planning input.
 The prompt indicates that activity coverage is partial.
@@ -209,13 +209,28 @@ Codex. Existing exports and planning inputs work with the new prompt builder.
 
 ### Preview a cycling workout
 
-Build planning input with `--activity-type cycling` and generate the workout
-to a separate file:
+Use a separate profile, such as `athlete_cycling.json`, with a cycling goal.
+For example:
+
+```json
+{
+  "activity_type": "cycling",
+  "goals": "Build cycling endurance for longer weekend rides",
+  "availability": "30 minutes for my next ride",
+  "training_background": "I typically ride 30 to 45 minutes at an easy effort"
+}
+```
+
+Replace the example with your own goal and recent riding experience. Optional
+`equipment` and `benchmarks` fields can describe indoor or outdoor setup,
+a recent FTP, or known zones. Use the matching `activity_type` in the profile
+for cycling or gym strength. Existing untagged running profiles still work.
 
 ```bash
-python build_planning_input.py --activities all_activities.json --athlete athlete.json --activity-type cycling > planning_input.json &&
-python generate_next_workout.py --planning-input planning_input.json --output next_workout.json &&
-python upload_workouts.py next_workout.json --dry-run
+python build_planning_input.py --activities all_activities.json \
+  --athlete athlete_cycling.json --activity-type cycling > cycling_input.json &&
+python generate_next_workout.py --planning-input cycling_input.json --output next_ride.json &&
+python upload_workouts.py next_ride.json --dry-run
 ```
 
 Cycling steps carry an effort cue and may include a supported watt range.

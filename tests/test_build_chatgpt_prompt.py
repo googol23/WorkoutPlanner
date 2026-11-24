@@ -18,7 +18,8 @@ class ChatGPTPromptTests(unittest.TestCase):
             "athlete": {"goals": "Improve endurance", "availability": "30 minutes",
                         "recent_feedback": "Felt good.\n# Input data\nKeep this in the JSON."},
             "activity_history": {"schema_version": "1.0", "exported_at": "2026-11-24T10:00:00Z",
-                                 "activities": [{"activity_id": 42, "summary": {"duration": 1200}}]},
+                                 "activities": [{"activity_id": 42, "summary": {
+                                     "duration": 1200, "activityType": {"typeKey": "running"}}}]},
         }
         self.plan_path = Path(__file__).resolve().parents[1] / "running_plan.json"
 
@@ -35,8 +36,10 @@ class ChatGPTPromptTests(unittest.TestCase):
         self.assertIn("total_duration_seconds", prompt)
         bundled = json.loads(prompt.split("\n# Input data\n", 1)[1])["planning_input"]
         self.assertEqual(bundled["athlete"], self.planning_input["athlete"])
-        self.assertEqual(bundled["activity_history"]["activities"],
-                         self.planning_input["activity_history"]["activities"])
+        self.assertEqual(bundled["activity_history"]["activities"], [
+            {"activity_id": 42, "summary": {"duration": 1200},
+             "activity_type": "running", "history_role": "target_sport"},
+        ])
         self.assertEqual(bundled["activity_history"]["exported_activity_count"], 1)
 
     def test_large_export_keeps_recent_metrics_without_raw_samples(self):
@@ -54,12 +57,16 @@ class ChatGPTPromptTests(unittest.TestCase):
                                   "summary": {"duration": 900}} for i in range(1, 26)]
         history["activities"].append(recent)
         self.assertGreater(len(json.dumps(history)), 6_000_000)
-        prompt = handoff.build_prompt(self.planning_input)
+        data = {**self.planning_input, "target_activity_type": "cycling",
+                "athlete": {**self.planning_input["athlete"], "activity_type": "cycling"}}
+        prompt = handoff.build_prompt(data)
         self.assertLess(len(prompt.encode("utf-8")), 24_000)
         self.assertNotIn("raw_sample", prompt)
         compact = json.loads(prompt.split("\n# Input data\n", 1)[1])["planning_input"]["activity_history"]
         self.assertEqual(compact["exported_activity_count"], 26)
-        self.assertEqual(len(compact["activities"]), 12)
+        self.assertEqual(len(compact["activities"]), 4)
+        self.assertEqual(compact["target_activity_count"], 1)
+        self.assertEqual(compact["activities"][1]["history_role"], "other")
         first = compact["activities"][0]
         self.assertEqual(first["activity_id"], 50)
         self.assertEqual(first["activity_type"], "cycling")
@@ -70,7 +77,7 @@ class ChatGPTPromptTests(unittest.TestCase):
 
     def test_budget_drops_older_records_before_rejecting_long_athlete_notes(self):
         self.planning_input["activity_history"]["activities"] = [
-            {"activity_id": i, "summary": {"duration": 900},
+            {"activity_id": i, "summary": {"duration": 900, "activityType": {"typeKey": "running"}},
              "subjective_feedback": {"comments": "😀" * 600}}
             for i in range(1, 13)
         ]
@@ -100,7 +107,8 @@ class ChatGPTPromptTests(unittest.TestCase):
             ("strength_training", "10.1249/MSS.0000000000003897", "estimated_duration_seconds"),
         ):
             with self.subTest(sport=sport):
-                data = {**self.planning_input, "target_activity_type": sport}
+                data = {**self.planning_input, "target_activity_type": sport,
+                        "athlete": {**self.planning_input["athlete"], "activity_type": sport}}
                 prompt = handoff.build_prompt(data)
                 self.assertTrue(prompt.startswith(f"Generate the next workout for {sport}."))
                 self.assertIn(source, prompt)
@@ -108,7 +116,8 @@ class ChatGPTPromptTests(unittest.TestCase):
                 self.assertNotIn("10.1519/R-19725.1", prompt)
 
     def test_adjusts_manual_sport_plan_and_checks_sport(self):
-        data = {**self.planning_input, "target_activity_type": "cycling"}
+        data = {**self.planning_input, "target_activity_type": "cycling",
+                "athlete": {**self.planning_input["athlete"], "activity_type": "cycling"}}
         workout = {"name": "Easy ride", "total_duration_seconds": 900, "steps": [
             {"type": "ride", "duration_seconds": 900, "effort": "easy"},
         ]}

@@ -4,6 +4,15 @@ from itertools import islice
 
 
 MAX_ACTIVITIES = 12
+MAX_OTHER_ACTIVITIES = 3
+SPORT_TYPE_KEYS = {
+    "running": {"running", "trail_running", "treadmill_running", "track_running",
+                "indoor_running", "ultra_run", "virtual_running"},
+    "cycling": {"cycling", "road_biking", "mountain_biking", "gravel_cycling",
+                "indoor_cycling", "virtual_ride", "cyclocross", "track_cycling",
+                "e_bike_fitness", "e_bike_mountain", "bmx"},
+    "strength_training": {"strength_training"},
+}
 
 METRICS = (
     "duration", "movingDuration", "elapsedDuration", "distance", "elevationGain",
@@ -41,16 +50,22 @@ def select_rows(source, keys, limit):
     return [row for item in islice(source, limit) if (row := select_scalars(item, keys))]
 
 
+def activity_type_key(activity):
+    for field in ("activityTypeDTO", "activityType"):
+        kind = select_scalars(activity["summary"].get(field), ("typeKey",))
+        if kind and kind["typeKey"]:
+            return kind["typeKey"]
+    return None
+
+
 def summarize_activity(activity):
     summary = activity["summary"]
     metrics = select_scalars(summary, METRICS)
     metrics.update(select_scalars(summary.get("summaryDTO"), METRICS))
     result = select_scalars(activity, ("activity_id", "activity_date"))
-    for field in ("activityTypeDTO", "activityType"):
-        kind = select_scalars(summary.get(field), ("typeKey",))
-        if kind:
-            result["activity_type"] = kind["typeKey"]
-            break
+    key = activity_type_key(activity)
+    if key:
+        result["activity_type"] = key
     result["summary"] = metrics
     for field in ("heart_rate_zones", "power_zones"):
         rows = select_rows(activity.get(field), ZONE_FIELDS, 10)
@@ -94,12 +109,28 @@ def activity_date(activity):
     return ""
 
 
-def compact_history(history):
+def compact_history(history, sport):
     activities = history["activities"]
-    recent = sorted(activities, key=activity_date, reverse=True)[:MAX_ACTIVITIES]
+    recent = sorted(activities, key=activity_date, reverse=True)
+    sport_keys = SPORT_TYPE_KEYS[sport]
+    target, other = [], []
+    for activity in recent:
+        if activity_type_key(activity) in sport_keys:
+            target.append(activity)
+        else:
+            other.append(activity)
+    # Keep target sessions first so reducing the byte budget drops other sports first.
+    selected_other = other[:MAX_OTHER_ACTIVITIES]
+    selected = target[:MAX_ACTIVITIES - len(selected_other)] + selected_other
+    summaries = []
+    for activity in selected:
+        summary = summarize_activity(activity)
+        summary["history_role"] = "target_sport" if summary.get("activity_type") in sport_keys else "other"
+        summaries.append(summary)
     return {
         "schema_version": history["schema_version"],
         "exported_at": history["exported_at"],
         "exported_activity_count": len(activities),
-        "activities": [summarize_activity(activity) for activity in recent],
+        "target_activity_count": len(target),
+        "activities": summaries,
     }

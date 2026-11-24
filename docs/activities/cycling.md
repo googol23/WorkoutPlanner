@@ -28,3 +28,11 @@ athlete feedback, with effort cues when power targets are unsupported.
 The pinned Garmin library provides a typed cycling workout and custom power
 targets. Offline tests cover step conversion, dispatch and duplicate-name
 handling. Preview a generated cycling workout before the first live upload.
+
+## Athlete context
+
+Use a cycling profile tagged `activity_type: "cycling"` with a cycling goal
+or an explicit cross-training purpose. The prompt uses rides for cycling
+benchmarks and keeps other sports as recovery context. A local input review
+found a running goal paired with a cycling target. The builder now rejects
+an untagged or differently tagged profile for cycling.

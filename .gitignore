@@ -14,3 +14,6 @@ token
 /planning_input.json
 /workout_prompt.md
 /next_workout.json
+/athlete_*.json
+/cycling_input.json
+/next_ride.json

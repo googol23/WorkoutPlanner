@@ -55,6 +55,15 @@ class PlanningInputTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "summary"):
             planner.build_input({**self.history, "activities": [{}]}, self.athlete, "running")
 
+    def test_cycling_requires_matching_profile(self):
+        with self.assertRaisesRegex(ValueError, 'activity_type.*cycling'):
+            planner.build_input(self.history, self.athlete, "cycling")
+        with self.assertRaisesRegex(ValueError, 'activity_type.*cycling'):
+            planner.build_input(self.history, {**self.athlete, "activity_type": "running"}, "cycling")
+        profile = {"activity_type": "cycling", "goals": "Ride longer comfortably",
+                   "availability": "30 minutes", "equipment": "Indoor trainer"}
+        self.assertEqual(planner.build_input(self.history, profile, "cycling")["athlete"], profile)
+
     def test_invalid_target_exits_before_reading_files(self):
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit) as error:
             planner.main(["--activities", "missing.json", "--athlete", "missing.json",

@@ -31,7 +31,16 @@ def build_input(export, athlete, activity_type):
         if type(activity_id) not in (str, int) or not activity_id:
             raise ValueError(f"Activity {index} must include activity_id")
 
-    allowed_fields = {"goals", "availability", "constraints", "preferences", "recent_feedback"}
+    profile_type = athlete.get("activity_type")
+    if (profile_type is not None or activity_type in ("cycling", "strength_training")) and profile_type != activity_type:
+        raise ValueError(
+            f'Athlete context must have "activity_type": "{activity_type}" and goals for that activity'
+        )
+
+    allowed_fields = {
+        "activity_type", "goals", "availability", "constraints", "preferences",
+        "recent_feedback", "training_background", "benchmarks", "equipment",
+    }
     if athlete.keys() - allowed_fields:
         raise ValueError("Athlete context contains unknown fields")
     for field in ("goals", "availability"):
