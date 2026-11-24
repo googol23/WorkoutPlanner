@@ -7,7 +7,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-import build_chatgpt_prompt as handoff
+from workoutplanner.chatgpt import prompt as handoff
 
 
 class ChatGPTPromptTests(unittest.TestCase):

@@ -2,17 +2,43 @@
 
 Imports running workouts from an application-level JSON file, converts them to Garmin's typed running workout format, and optionally schedules them. The separate read-only exporter downloads completed activities as JSON for external analysis. Neither tool generates plans or performs fitness analysis. Uses the unofficial [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) API; Garmin can change its service without notice.
 
-## Setup (Python 3.12+)
+## Setup
 
-The existing `.venv` can be used, or create one with `python3.12 -m venv .venv`. From this project directory:
+From an existing clone on Debian or Ubuntu with Python 3.12+ available:
 
 ```bash
+bash setup/bootstrap.sh
 source .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m unittest discover -s tests -v
 ```
 
-On Windows activate with `.venv\Scripts\activate` instead. `requirements.txt` pins `garminconnect[workout]==0.3.20` (the `workout` extra installs Pydantic). The CLI does not support the older `garth`-based 0.2.x tokens.
+The script installs Git, curl, CA certificates, Python and venv support via APT,
+creates `.venv`, installs the pinned Garmin Python dependency, installs Codex
+if missing, and runs the offline suite. It clears proxy settings for its
+network commands. On other platforms, install the system prerequisites and
+use `--skip-os`. Use `--skip-codex` for Garmin-only setup.
+Set `WORKOUTPLANNER_PYTHON` to an installed Python 3.12+ executable if the
+default Python is older. Sign in to Codex separately before live generation.
+
+To install Python dependencies into an existing Windows environment, use
+`python -m pip install -r requirements.txt` and run
+`python -m unittest discover -s tests`.
+
+## Repository layout
+
+| Path | Responsibility |
+| --- | --- |
+| `workoutplanner/garmin/upload.py` | Convert workout plans and upload or schedule them. |
+| `workoutplanner/garmin/download.py` | Read Garmin activity history. |
+| `workoutplanner/garmin/auth.py` | Share saved-token authentication between the two Garmin tools. |
+| `workoutplanner/chatgpt/` | Assemble bounded prompts and generate workouts through Codex. |
+| `workoutplanner/planning_input.py`, `workoutplanner/workout_schema.py` | Build planning input and validate shared JSON formats. |
+| `setup/` | Bootstrap the local environment and pin the Garmin dependency. |
+| `skills/`, `docs/activities/` | Planning instructions, research, and activity-specific project context. |
+
+The root Python commands remain available. The only third-party Python
+dependency is `garminconnect[workout]==0.3.20` (including its transitive
+dependencies), declared in `setup/requirements-garmin.txt`. ChatGPT tooling
+uses standard-library Python and invokes Codex for live generation.
 
 ## Commands
 

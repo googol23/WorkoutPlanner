@@ -14,5 +14,4 @@ Exercise-level coverage and structured Garmin upload still need verification.
 The pinned Garmin library exposes a read-only exercise-set endpoint. Strength
 exports retain its available exercise data after the existing privacy filter.
 The bounded prompt includes up to 12 set records per session, with nested
-exercise names, rep counts and load units where returned. Live metric
-coverage still needs a local Garmin export.
+exercise names, rep counts and load units where returned. The athlete confirmed that a live Garmin export contained exercise sets.

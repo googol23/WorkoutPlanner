@@ -1,1 +1,2 @@
-garminconnect[workout]==0.3.20
+# Compatibility entry point. Only the Garmin tools need third-party Python packages.
+-r setup/requirements-garmin.txt

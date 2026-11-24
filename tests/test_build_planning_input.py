@@ -7,7 +7,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-import build_planning_input as planner
+from workoutplanner import planning_input as planner
 
 
 class PlanningInputTests(unittest.TestCase):

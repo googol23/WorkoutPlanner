@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import download_activities as exporter
+from workoutplanner.garmin import download as exporter
 
 
 def run(activity_id, kind="running", **extra):

@@ -9,7 +9,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-import generate_next_workout as generator
+from workoutplanner.chatgpt import generate as generator
 
 
 class GenerationTests(unittest.TestCase):

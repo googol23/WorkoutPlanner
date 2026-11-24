@@ -24,6 +24,9 @@ def step(kind):
     return build
 
 
+from workoutplanner.workout_schema import load_plan
+
+
 library = types.ModuleType("garminconnect")
 library.Garmin = Mock()
 library.GarminConnectAuthenticationError = type("GarminConnectAuthenticationError", (Exception,), {})
@@ -40,7 +43,7 @@ for kind in ("warmup", "cooldown", "recovery", "interval"):
     setattr(workout, "create_" + kind + "_step", step(kind))
 workout.create_targeted_interval_step = lambda seconds, order, target: Model(stepOrder=order, target=target)
 workout.create_repeat_group = lambda count, children, order: Model(stepOrder=order, numberOfIterations=count, workoutSteps=children)
-spec = importlib.util.spec_from_file_location("upload_workouts", Path(__file__).resolve().parents[1] / "upload_workouts.py")
+spec = importlib.util.spec_from_file_location("upload_workouts", Path(__file__).resolve().parents[1] / "workoutplanner" / "garmin" / "upload.py")
 module = importlib.util.module_from_spec(spec)
 with patch.dict(sys.modules, {"garminconnect": library, "garminconnect.workout": workout}):
     spec.loader.exec_module(module)
@@ -59,7 +62,7 @@ class UploadTests(unittest.TestCase):
 
     def test_supplied_plan(self):
         path = Path(__file__).resolve().parents[1] / "running_plan.json"
-        workouts = module.load_plan(path)
+        workouts = load_plan(path)
         self.assertEqual(len(workouts), 1)
         self.assertEqual(module.build_workout(workouts[0]).estimatedDurationInSecs, 1200)
         library.Garmin.reset_mock()
@@ -88,7 +91,7 @@ class UploadTests(unittest.TestCase):
                 path = Path(tmp) / "plan.json"
                 path.write_text(json.dumps({"schema_version": "1.0", "sport": "running", "timezone": "Europe/Berlin", "units": {"duration": "seconds", "pace": "seconds_per_km", "heart_rate": "bpm"}, "workouts": [{"name": "X", "week": 1, "total_duration_seconds": 60, "steps": [bad_step]}]}))
                 with self.assertRaises(module.InputError):
-                    module.load_plan(path)
+                    load_plan(path)
 
     def test_dry_run_never_authenticates(self):
         with tempfile.TemporaryDirectory() as tmp:
