@@ -8,6 +8,9 @@ import sys
 from pathlib import Path
 
 
+STRENGTH_PREFERENCES = ("preferred_machines", "preferred_exercises")
+
+
 def read_object(path):
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -41,14 +44,20 @@ def build_input(export, athlete, activity_type):
         "activity_type", "goals", "availability", "constraints", "preferences",
         "recent_feedback", "training_background", "benchmarks", "equipment",
     }
+    if activity_type == "strength_training":
+        allowed_fields.update(STRENGTH_PREFERENCES)
     if athlete.keys() - allowed_fields:
         raise ValueError("Athlete context contains unknown fields")
     for field in ("goals", "availability"):
         value = athlete.get(field)
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"Athlete context {field} must be nonempty text")
-    if any(not isinstance(value, str) or not value.strip() for value in athlete.values()):
-        raise ValueError("Athlete context values must be nonempty text")
+    for field, value in athlete.items():
+        if field in STRENGTH_PREFERENCES:
+            if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):
+                raise ValueError(f"Athlete context {field} must be a list of nonempty strings")
+        elif not isinstance(value, str) or not value.strip():
+            raise ValueError("Athlete context values must be nonempty text")
 
     return {
         "schema_version": "1.0",

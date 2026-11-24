@@ -131,6 +131,23 @@ class ChatGPTPromptTests(unittest.TestCase):
         running = handoff.build_prompt(self.planning_input)
         self.assertNotIn("garmin_exercise_catalog", running)
 
+    def test_strength_catalog_is_complete_and_preferences_add_matching_choices(self):
+        full = json.loads((handoff.SKILL_DIR / "references" /
+                           "garmin-strength-exercises.json").read_text(encoding="utf-8"))
+        self.assertEqual({name for names in full.values() for name in names}, BY_NAME.keys())
+        sport = "strength_training"
+        athlete = {**self.planning_input["athlete"], "activity_type": sport,
+                   "preferred_machines": ["Lat Pulldown machine", "Leg Press machine"],
+                   "preferred_exercises": ["Push-up", "Glute Bridge"]}
+        prompt = handoff.build_prompt({**self.planning_input, "target_activity_type": sport,
+                                       "athlete": athlete})
+        bundled = json.loads(prompt.split("\n# Input data\n", 1)[1])
+        choices = bundled["garmin_exercise_catalog"]
+        self.assertEqual(choices["preferred_or_existing"], ["Push-up", "Hip Raise"])
+        self.assertIn("Leg Press", choices["machine_matches"])
+        self.assertEqual(bundled["planning_input"]["athlete"], athlete)
+        self.assertLessEqual(len(prompt.encode("utf-8")), handoff.MAX_PROMPT_BYTES)
+
     def test_strength_prompt_keeps_nested_exercise_names_and_units(self):
         sport = "strength_training"
         data = {**self.planning_input, "target_activity_type": sport,

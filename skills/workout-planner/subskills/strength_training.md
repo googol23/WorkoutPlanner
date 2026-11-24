@@ -24,7 +24,11 @@ an ordered `exercises` array. For each exercise `name`, copy an exact Garmin dis
 `garmin_exercise_catalog` in the input. The [catalog reference](../references/garmin-strength-exercises.json)
 provides the same choices when running the skill directly. Use “Hip Raise”
 for the floor glute bridge. Choose exercises that match the athlete's
-equipment and goal. If the catalog offers no suitable choice, ask a focused
+equipment and goal. Prioritize preferred exercises and machines when they
+match the available equipment and training purpose. Treat equipment
+constraints as requirements. Machine matches are name-based candidates, so
+check that each exercise actually fits the stated setup. If the catalog offers
+no suitable choice, ask a focused
 question before generating a workout. Each exercise has a `name`, positive whole
 `sets`, a `reps` object with whole `min` and `max`, `rest_seconds`,
 and an `effort` cue. Include optional `load: {"value": ..., "unit": "kg"}`

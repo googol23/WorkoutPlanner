@@ -273,6 +273,22 @@ unavailable. Use a profile such as `athlete_strength.json` with
 available time, and the equipment and training background you want the
 planner to consider.
 
+Use `preferred_machines` and `preferred_exercises` as optional arrays in the
+strength profile. Exact Garmin display names work best for exercises. Machine
+preferences match words in the local catalog and the planner checks them
+against the equipment you describe. For example:
+
+```json
+{
+  "activity_type": "strength_training",
+  "goals": "Build general strength",
+  "availability": "30 minutes",
+  "equipment": "Leg press, cable station, dumbbells and a bench",
+  "preferred_machines": ["Leg Press", "Lat Pull-down"],
+  "preferred_exercises": ["Dumbbell Bench Press", "Goblet Squat"]
+}
+```
+
 After creating `athlete_strength.json`, build, generate, and preview the gym
 workout:
 

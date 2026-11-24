@@ -8,6 +8,7 @@ from pathlib import Path
 
 from workoutplanner.planning_input import build_input, read_object
 from workoutplanner.chatgpt.history import compact_history
+from workoutplanner.chatgpt.strength_catalog import select_catalog
 from workoutplanner.workout_schema import validate_plan
 
 
@@ -36,11 +37,6 @@ def build_prompt(planning_input, existing_plan=None, workout_name=None):
     history_summary = compact_history(history, sport)
     data = {"planning_input": {**validated, "activity_history": history_summary}}
 
-    if sport == "strength_training":
-        data["garmin_exercise_catalog"] = read_object(
-            SKILL_DIR / "references" / "garmin-strength-exercises.json"
-        )
-
     request = f"Generate the next workout for {sport}."
     if existing_plan is not None:
         workouts = validate_existing_plan(existing_plan, sport)
@@ -49,6 +45,10 @@ def build_prompt(planning_input, existing_plan=None, workout_name=None):
             raise ValueError(f"Workout {workout_name!r} was not found in the existing plan")
         data["existing_plan"] = {**existing_plan, "workouts": [selected]}
         request = "Adjust the single workout in existing_plan using the planning input."
+
+    if sport == "strength_training":
+        existing_exercises = [exercise["name"] for exercise in selected["exercises"]] if existing_plan else []
+        data["garmin_exercise_catalog"] = select_catalog(SKILL_DIR / "references", athlete, existing_exercises)
 
     instructions = ["SKILL.md", f"subskills/{sport}.md", f"references/{sport}-evidence.md"]
     if sport == "running":
