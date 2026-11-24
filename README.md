@@ -120,14 +120,29 @@ The activity context documents describe sport-specific coverage.
 The builder runs locally. Review athlete notes and activity names before
 sharing the result, and keep personal exports and athlete context out of Git.
 
-## Use the running WorkoutPlanner skill
+## Prepare the running WorkoutPlanner prompt
 
-Supply [the skill instructions](skills/workout-planner/SKILL.md),
-[the running evidence register](skills/workout-planner/references/running-evidence.md),
-[the output contract](skills/workout-planner/references/running-output.md),
-and your `planning_input.json` to ChatGPT. Ask for the next running workout.
-To adjust a session, also provide its existing plan JSON and the workout name.
-Review the rationale and save the separate workout JSON as `next_workout.json`.
+Build a single prompt containing the skill, evidence register, output
+contract and your planning input:
+
+```bash
+python build_chatgpt_prompt.py --planning-input planning_input.json > workout_prompt.md
+```
+
+To adjust an existing session, provide its exact workout name:
+
+```bash
+python build_chatgpt_prompt.py --planning-input planning_input.json \
+  --existing-plan running_plan.json --workout-name "Example running workout" > workout_prompt.md
+```
+
+Review `workout_prompt.md` before pasting it into ChatGPT. It contains the
+athlete context and full activity history, plus the selected workout when
+adjusting a plan. The command runs offline. Keep the generated prompt and the
+personal inputs out of Git.
+
+Review ChatGPT's rationale and save the workout JSON block by itself as
+`next_workout.json`. Validate it offline with the Garmin uploader:
 
 ```bash
 python upload_workouts.py next_workout.json --dry-run

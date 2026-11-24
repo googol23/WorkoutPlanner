@@ -101,6 +101,10 @@ def load_plan(path):
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise InputError(f"Cannot read JSON plan: {exc}") from exc
+    return validate_plan(data)
+
+
+def validate_plan(data):
     fields(data, {"schema_version", "sport", "timezone", "units", "workouts"}, set(), "plan")
     if data["schema_version"] != "1.0" or data["sport"] != "running":
         raise InputError("Only schema_version 1.0 and sport running are supported")

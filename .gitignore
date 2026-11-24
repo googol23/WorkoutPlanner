@@ -7,3 +7,10 @@ garmin_tokens.json
 oauth1_token.json
 oauth2_token.json
 token
+
+# Local athlete data and generated handoff files
+/athlete.json
+/*_activities.json
+/planning_input.json
+/workout_prompt.md
+/next_workout.json

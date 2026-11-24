@@ -2,7 +2,7 @@
 
 - **Current support:** Completed running activities can be exported by recent count or activity ID. Structured workouts can be validated, uploaded and optionally scheduled.
 - **Verification:** The offline suite and the uploader dry-run pass with the pinned Garmin dependency. A live mixed-sport export succeeded.
-- **Next:** Verify the skill with a live ChatGPT handoff and a reviewed workout dry-run.
+- **Next:** Verify an interactive ChatGPT response and a reviewed workout dry-run.
 - **Evidence and decisions:** See the running skill and evidence register below.
 
 ## Filtered sync
@@ -34,3 +34,10 @@ keeps the rationale separate from Garmin-ready JSON.
 
 A local live retry of the mixed-sport export succeeded after the activity type
 fix. Upload and end-to-end ChatGPT generation still need live verification.
+
+## ChatGPT handoff
+
+The offline prompt builder bundles the running skill, evidence register and
+uploader contract with a versioned planning input. Adjustment mode includes
+only the named workout from the source plan. Review the generated prompt
+before sharing it and dry-run the resulting workout JSON before uploading.
