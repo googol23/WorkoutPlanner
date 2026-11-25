@@ -50,6 +50,16 @@ def run_codex(prompt, *, debug_file=None):
     if status.returncode or "logged in using chatgpt" not in (status.stdout + status.stderr).lower():
         raise ValueError("Run codex login and sign in with ChatGPT before generating a workout")
 
+    help_result = subprocess.run(
+        ["codex", "exec", "--help"], env=env, capture_output=True, text=True, timeout=15,
+    )
+    required_flags = ("--ignore-user-config", "--ephemeral", "--output-schema", "--output-last-message")
+    help_text = help_result.stdout + help_result.stderr
+    missing = [flag for flag in required_flags if flag not in help_text]
+    if help_result.returncode or missing:
+        detail = ", ".join(missing) or "codex exec --help failed"
+        raise ValueError(f"Update the Codex CLI before generating a workout. Required options unavailable: {detail}")
+
     with TemporaryDirectory() as folder:
         workdir = Path(folder)
         schema = workdir / "response.schema.json"

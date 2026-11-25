@@ -12,6 +12,11 @@ from unittest.mock import patch
 from workoutplanner.chatgpt import generate as generator
 
 
+SUPPORTED_HELP = subprocess.CompletedProcess(
+    [], 0, "--ignore-user-config --ephemeral --output-schema --output-last-message", "",
+)
+
+
 class GenerationTests(unittest.TestCase):
     def setUp(self):
         folder = self.enterContext(tempfile.TemporaryDirectory())
@@ -35,6 +40,8 @@ class GenerationTests(unittest.TestCase):
             self.assertNotIn("GARMIN_REFRESH_TOKEN", options["env"])
             if command[1:3] == ["login", "status"]:
                 return subprocess.CompletedProcess(command, 0, "", "Logged in using ChatGPT")
+            if command == ["codex", "exec", "--help"]:
+                return SUPPORTED_HELP
             self.assertIn("Generate the next workout for running", options["input"])
             self.assertEqual(command[-1], "-")
             path = Path(command[command.index("--output-last-message") + 1])
@@ -64,12 +71,21 @@ class GenerationTests(unittest.TestCase):
         self.output.write_text("existing", encoding="utf-8")
         status = subprocess.CompletedProcess([], 0, "", "Logged in using ChatGPT")
         failed = subprocess.CompletedProcess([], 1, "", "Error: example CLI failure")
-        with patch.object(generator.subprocess, "run", side_effect=[status, failed]):
+        with patch.object(generator.subprocess, "run", side_effect=[status, SUPPORTED_HELP, failed]):
             with redirect_stderr(StringIO()) as error:
                 self.assertEqual(generator.main([*self.args, "--debug"]), 1)
         self.assertNotIn("Error: example CLI failure", error.getvalue())
         self.assertIn("Error: example CLI failure", self.output.with_suffix(".json.debug.txt").read_text())
         self.assertEqual(self.output.read_text(), "existing")
+
+    def test_old_cli_fails_before_submitting_prompt(self):
+        status = subprocess.CompletedProcess([], 0, "Logged in using ChatGPT", "")
+        old_help = subprocess.CompletedProcess([], 0, "--ephemeral --output-schema --output-last-message", "")
+        with patch.object(generator.subprocess, "run", side_effect=[status, old_help]) as run:
+            with self.assertRaisesRegex(ValueError, "Update the Codex CLI.*--ignore-user-config"):
+                generator.run_codex("private prompt")
+        self.assertEqual(run.call_count, 2)
+        self.assertTrue(all("input" not in call.kwargs for call in run.call_args_list))
 
     def test_api_key_login_is_rejected_before_sending_prompt(self):
         result = subprocess.CompletedProcess([], 0, "", "Logged in using an API key")

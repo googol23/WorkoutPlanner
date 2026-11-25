@@ -11,9 +11,9 @@ or schedules the reviewed workout in Garmin Connect.
 | [Gym strength](docs/activities/strength_training.md) | Catalog exercises, sets, reps, timed rests and optional loads | Exercise-set export, generation, preview, upload, scheduling and both duplicate checks |
 | [Bouldering](docs/activities/bouldering.md) | Activity export only | A mixed export contained the `bouldering` type |
 
-Run the workflow locally or configure the [weekly GitHub Actions workflow](docs/weekly-workout.md)
-on a private repository using a GitHub-hosted runner. See the [workflow reference](docs/workflow.md)
-for data formats, troubleshooting and operational limits.
+The current workflow runs locally. The upcoming GitHub Actions work is tracked
+in the [roadmap](ROADMAP.md). See the [workflow reference](docs/workflow.md) for
+data formats, troubleshooting and operational limits.
 
 ## Setup
 

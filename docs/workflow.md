@@ -106,6 +106,10 @@ remain a separate step.
 
 ## Local multi-sport planning
 
+Generation requires a Codex CLI whose `codex exec --help` lists
+`--ignore-user-config`. Update Codex if the compatibility check fails.
+The planner keeps this flag to isolate the request from user configuration.
+
 Keep a named-profile JSON object on your machine. Each entry uses the same
 fields as a single athlete profile, including an explicit `activity_type`.
 Different names can use the same sport. For example:
