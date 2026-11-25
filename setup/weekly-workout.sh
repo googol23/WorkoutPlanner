@@ -25,6 +25,41 @@ run_step() {
     fi
 }
 
+# Seed the runner-only cache once so Garmin can refresh tokens in place.
+garmin_secret=${GARMIN_TOKENS_JSON:-}
+unset GARMIN_TOKENS_JSON
+token_dir="$local_dir/garmin"
+token_file="$token_dir/garmin_tokens.json"
+if [[ -z "$garmin_secret" ]]; then
+    printf '%s\n' 'Set the GARMIN_TOKENS_JSON Actions secret.' >&2
+    exit 1
+fi
+mkdir -p -- "$token_dir"
+if [[ ! -f "$token_file" ]]; then
+    if ! printf '%s' "$garmin_secret" | "$python_bin" -c '
+import json, os, sys
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+destination = Path(sys.argv[1])
+tokens = json.load(sys.stdin)
+if not isinstance(tokens, dict) or not tokens:
+    raise ValueError("Expected a Garmin token file JSON object")
+with NamedTemporaryFile(mode="w", dir=destination.parent, delete=False) as stream:
+    temp = Path(stream.name)
+    try:
+        json.dump(tokens, stream)
+        stream.close()
+        os.replace(temp, destination)
+    finally:
+        temp.unlink(missing_ok=True)
+' "$token_file" >>"$log" 2>&1; then
+        printf '%s\n' 'Could not initialize Garmin from GARMIN_TOKENS_JSON.' >&2
+        exit 1
+    fi
+fi
+unset garmin_secret
+
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 if ! sport=$("$python_bin" -c '
 import json, sys
@@ -39,7 +74,7 @@ print(sport)
     exit 1
 fi
 
-run_step 'Sync Garmin history' "$python_bin" download_activities.py \
+run_step 'Sync Garmin history' env WORKOUTPLANNER_GARMIN_NONINTERACTIVE=1 WORKOUTPLANNER_GARMIN_TOKEN_DIR="$token_dir" "$python_bin" download_activities.py \
     --activity-type all --limit 20 --output "$run_dir/activities.json"
 run_step 'Build planning input' "$python_bin" build_planning_input.py \
     --activities "$run_dir/activities.json" --athlete "$profile" \
@@ -50,6 +85,6 @@ run_step 'Validate Garmin workout' "$python_bin" upload_workouts.py \
     "$run_dir/next_workout.json" --dry-run
 
 if [[ "${WORKOUTPLANNER_UPLOAD:-false}" == true ]]; then
-    run_step 'Upload workout to Garmin' "$python_bin" upload_workouts.py "$run_dir/next_workout.json"
+    run_step 'Upload workout to Garmin' env WORKOUTPLANNER_GARMIN_NONINTERACTIVE=1 WORKOUTPLANNER_GARMIN_TOKEN_DIR="$token_dir" "$python_bin" upload_workouts.py "$run_dir/next_workout.json"
 fi
 printf 'Completed. Private runner files: %s\n' "${run_dir##*/}"

@@ -30,5 +30,6 @@ jobs:
           persist-credentials: false
       - name: Sync, generate, and validate workout
         env:
+          GARMIN_TOKENS_JSON: ${{ secrets.GARMIN_TOKENS_JSON }}
           WORKOUTPLANNER_UPLOAD: ${{ github.event_name == 'schedule' || inputs.upload }}
         run: bash setup/weekly-workout.sh

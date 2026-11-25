@@ -24,14 +24,17 @@ calendar placement to a separate command.
 3. Put the chosen athlete profile in
    `~/.local/share/workoutplanner/athlete.json`. Set its `activity_type` to
    `running`, `cycling`, or `strength_training`. Ensure the runner service
-   can find `codex` on its PATH. Sign in to Codex and Garmin locally as the
-   runner account, using the proxy-free login commands in the
-   [README](../README.md) and the additional Garmin command below. The runner
-   reuses those logins. Keep credentials and the profile off GitHub.
-
-   ```bash
-   direct "$HOME/.local/share/workoutplanner/venv/bin/python" upload_workouts.py --login
-   ```
+   can find `codex` on its PATH. Run `codex login` as the runner account and
+   choose ChatGPT sign-in. The Garmin token does not authenticate ChatGPT.
+4. In **Settings → Secrets and variables → Actions**, add a repository
+   secret named `GARMIN_TOKENS_JSON`. Its value is the complete contents of
+   `~/.garminconnect/garmin_tokens.json` from a successful local
+   `python upload_workouts.py --login`. Treat this file as account access.
+   The workflow seeds a private token cache under
+   `~/.local/share/workoutplanner/garmin/` on the runner. Garmin can refresh
+   that cached session between runs. If the session expires, update the
+   secret with a fresh token file and remove the stale runner-side
+   `garmin_tokens.json` while the workflow is idle.
 
 ## First run
 
@@ -44,6 +47,6 @@ in the run directory on the runner. Remove old run directories when you no
 longer need them.
 
 Expired credentials or generation failures stop the run before upload.
-Sign in again on the runner when required. If an upload fails after the
+Refresh the Garmin cache or sign in to Codex again as appropriate. If an upload fails after the
 request was sent, check Garmin Connect before retrying. The uploader skips
 identical workout names, and a fresh run can generate a different plan.
