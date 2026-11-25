@@ -97,7 +97,8 @@ rationale. Put a JSON-encoded object in workout_json with exactly two fields:
 priority, an array of usable profile names in preference order, and plans,
 an object with exactly one entry per input profile. Each entry is a standalone
 sport-specific plan with one workout or null if a workout needs to be deferred.
-Explain deferred entries in the rationale. For strength, use the catalog under
+When history is sparse, use the athlete's goals and background to offer a
+conservative option where appropriate. Explain any necessary deferral in the rationale. For strength, use the catalog under
 that profile's name. Avoid scheduling dates unless the athlete requests them.""",
         *((SKILL_DIR / path).read_text(encoding="utf-8").strip() for path in instructions),
         "# Input data",
@@ -170,7 +171,11 @@ def main(argv=None):
     parser.add_argument("--output-dir", type=Path, default=Path("private/weekly"))
     parser.add_argument("--debug", action="store_true", help="save Codex stderr in a private run directory")
     parser.add_argument("--prompt-only", type=Path, help="write the prompt locally without calling Codex")
+    parser.add_argument("--publish", action="store_true",
+                        help="upload the complete batch and delete the previous managed batch")
     args = parser.parse_args(argv)
+    if args.publish and args.prompt_only:
+        parser.error("--publish and --prompt-only cannot be combined")
     if not 1 <= args.lookback_days <= 90:
         parser.error("--lookback-days must be from 1 to 90")
     try:
@@ -198,6 +203,14 @@ def main(argv=None):
             ) + "\n")
         print(f"Saved workout options to {run_dir}")
         print("Priority: " + ", ".join(priority) if priority else "No workout was prescribed.")
+        if plans.keys() == profiles.keys():
+            write_private(run_dir / "batch.json", json.dumps({"profiles": priority}) + "\n")
+        if args.publish:
+            if plans.keys() != profiles.keys():
+                raise ValueError("Publishing requires one usable workout per profile; review the rationale. Garmin was not changed.")
+            from workoutplanner.garmin.publish import main as publish_run
+
+            return publish_run([str(run_dir)])
         return 0 if priority else 2
     except subprocess.TimeoutExpired:
         print("Error: Codex timed out", file=sys.stderr)

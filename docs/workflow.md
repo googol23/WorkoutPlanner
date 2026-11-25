@@ -167,3 +167,26 @@ Choose a plan and dry-run the corresponding JSON with the uploader. Upload
 only the workouts you choose. After executing one, refresh the Garmin export
 and generate again. The planner uses completed activities as history. Previous
 suggestions do not count as completed workouts.
+
+### Replace the previous Garmin batch
+
+Add `--publish` to the local multi-sport generation command to upload every
+profile's workout after validation. A deferred profile stops publication
+before Garmin is changed. You can also publish an existing complete run:
+
+```bash
+python -m workoutplanner.garmin.publish private/weekly/RUN_DIRECTORY
+```
+
+WorkoutPlanner prefixes managed template names with a `[WP-…]` marker and
+stores their Garmin IDs in `~/.garminconnect/workoutplanner-managed.json`.
+Keep that file locally. Only templates recorded by this feature are eligible
+for cleanup. The uploader verifies the stored signed name against Garmin
+before deleting and does not infer ownership from old unmarked uploads.
+The first publish establishes the tracked batch.
+
+If a write fails, inspect Garmin Connect and retry the **same saved run**
+with the publish command above. The journal records partial progress and the
+next batch cannot replace an unfinished one. New templates are uploaded
+before any old templates are retired. Publication creates workout templates.
+It is separate from calendar scheduling.
