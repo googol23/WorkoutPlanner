@@ -103,3 +103,63 @@ Bootstrap uses a hash-locked wheel set for x86-64 Linux with CPython 3.12.
 Other platforms use pinned constraints and wheels. Hashes verify the
 downloaded files against the repository lock. Dependency advisory checks
 remain a separate step.
+
+## Local multi-sport planning
+
+Keep a named-profile JSON object on your machine. Each entry uses the same
+fields as a single athlete profile, including an explicit `activity_type`.
+Different names can use the same sport. For example:
+
+```json
+{
+  "running": {
+    "activity_type": "running",
+    "goals": "Build endurance for a 10 km run",
+    "availability": "30 minutes"
+  },
+  "cycling": {
+    "activity_type": "cycling",
+    "goals": "Prepare for a multi-day bikepacking trip of 60–80 km per day",
+    "availability": "90 minutes",
+    "equipment": "Outdoor cross bike"
+  },
+  "strength": {
+    "activity_type": "strength_training",
+    "goals": "Build full-body strength",
+    "availability": "60 minutes",
+    "equipment": "Fully equipped gym",
+    "preferred_machines": ["Crunch machine"],
+    "preferred_exercises": ["Cable-pull row"]
+  }
+}
+```
+
+Save it as `private/athlete_profiles.json`. From the repository root:
+
+```bash
+mkdir -p -m 700 private
+activity_range=$(python -c 'from datetime import date, timedelta; d = date.today(); print(f"{d - timedelta(days=13)}..{d}")')
+python download_activities.py --activity-type all --time-range "$activity_range" \
+  --output private/recent_activities.json &&
+python -m workoutplanner.chatgpt.week --activities private/recent_activities.json \
+  --profiles private/athlete_profiles.json
+```
+
+Both ends of the 14-day lookback are included. The next-workout horizon is
+today through six days ahead. Use `--lookback-days` to change the analysis
+window and request a matching export. The prompt includes the latest session
+of each recorded activity type in the window, then adds older sessions as
+space allows. The export may have gaps and raw chart samples stay local.
+
+The planner uses one Codex request with a shared history and separate sport
+goals. The resulting directory under `private/weekly/` contains one Garmin
+plan per usable profile, plus `rationale.txt` with the priority, recovery
+considerations and advice on spacing sessions if you choose more than one.
+A profile can be deferred when recent information is insufficient. Use
+`--prompt-only private/week_prompt.md` to inspect what would be sent before
+making a model call.
+
+Choose a plan and dry-run the corresponding JSON with the uploader. Upload
+only the workouts you choose. After executing one, refresh the Garmin export
+and generate again. The planner uses completed activities as history. Previous
+suggestions do not count as completed workouts.

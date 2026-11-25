@@ -119,3 +119,10 @@ The root Python scripts are the CLI entry points. To verify locally:
 python -m unittest discover -s tests -v
 python upload_workouts.py running_plan.json --dry-run
 ```
+
+## Coordinate workouts across sports
+
+Keep named profiles for running, cycling, and strength and build all next-workout
+options in one local command. The planner ranks the options and explains how
+to space them if you do more than one. The [multi-sport workflow](docs/workflow.md#local-multi-sport-planning)
+shows the profile format, date-range export, and generation command.
