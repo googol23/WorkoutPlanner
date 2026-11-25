@@ -1,90 +1,103 @@
 #!/usr/bin/env bash
-# Runs on the dedicated runner under its own OS account.
+# Runs on a fresh GitHub-hosted runner.
 set -euo pipefail
 umask 077
-unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_proxy ftp_proxy
 
-local_dir="$HOME/.local/share/workoutplanner"
-python_bin="$local_dir/venv/bin/python"
-profile="$local_dir/athlete.json"
-if [[ ! -x "$python_bin" || ! -r "$profile" ]]; then
-    printf '%s\n' 'Runner setup is incomplete. See docs/weekly-workout.md.' >&2
+garmin_secret=${GARMIN_TOKENS_JSON:-}
+codex_secret=${CODEX_AUTH_JSON:-}
+athlete_secret=${ATHLETE_PROFILE_JSON:-}
+unset GARMIN_TOKENS_JSON CODEX_AUTH_JSON ATHLETE_PROFILE_JSON
+if [[ -z "$garmin_secret" || -z "$codex_secret" || -z "$athlete_secret" ]]; then
+    printf '%s\n' 'Set GARMIN_TOKENS_JSON, CODEX_AUTH_JSON, and ATHLETE_PROFILE_JSON in Actions secrets.' >&2
     exit 1
 fi
-mkdir -p -- "$local_dir/runs"
-run_dir=$(mktemp -d "$local_dir/runs/run.XXXXXXXX")
+
+run_dir=$(mktemp -d)
+auth_file="$HOME/.codex/auth.json"
+if [[ -e "$auth_file" || -L "$auth_file" ]]; then
+    rmdir -- "$run_dir"
+    printf '%s\n' 'Expected a fresh runner without a Codex login cache.' >&2
+    exit 1
+fi
+cleanup() {
+    rm -f -- "$auth_file"
+    rm -rf -- "$run_dir"
+}
+trap cleanup EXIT
+token_dir="$run_dir/garmin"
+profile="$run_dir/athlete.json"
 log="$run_dir/run.log"
+mkdir -p -- "$token_dir" "$HOME/.codex"
+
+write_json_secret() {
+    local value=$1 name=$2 destination=$3
+    if ! printf '%s' "$value" | python -c '
+import json
+import sys
+from pathlib import Path
+
+data = json.load(sys.stdin)
+if not isinstance(data, dict) or not data:
+    raise ValueError("Expected a nonempty JSON object")
+with Path(sys.argv[1]).open("x", encoding="utf-8") as stream:
+    json.dump(data, stream)
+' "$destination" >>"$log" 2>&1; then
+        printf '%s must contain a valid JSON object.\n' "$name" >&2
+        exit 1
+    fi
+}
+
+write_json_secret "$garmin_secret" GARMIN_TOKENS_JSON "$token_dir/garmin_tokens.json"
+write_json_secret "$athlete_secret" ATHLETE_PROFILE_JSON "$profile"
+unset garmin_secret athlete_secret
 
 run_step() {
     local name=$1
     shift
     printf '%s\n' "$name"
-    if ! "$@" </dev/null >>"$log" 2>&1; then
-        printf '%s failed. See the private runner log in %s.\n' "$name" "${run_dir##*/}" >&2
-        exit 1
+    if "$@" </dev/null >>"$log" 2>&1; then
+        return
+    else
+        local status=$?
+        printf '%s failed (exit %s). Details withheld from Actions logs.\n' "$name" "$status" >&2
+        exit "$status"
     fi
 }
 
-# Seed the runner-only cache once so Garmin can refresh tokens in place.
-garmin_secret=${GARMIN_TOKENS_JSON:-}
-unset GARMIN_TOKENS_JSON
-token_dir="$local_dir/garmin"
-token_file="$token_dir/garmin_tokens.json"
-if [[ -z "$garmin_secret" ]]; then
-    printf '%s\n' 'Set the GARMIN_TOKENS_JSON Actions secret.' >&2
-    exit 1
-fi
-mkdir -p -- "$token_dir"
-if [[ ! -f "$token_file" ]]; then
-    if ! printf '%s' "$garmin_secret" | "$python_bin" -c '
-import json, os, sys
-from pathlib import Path
-from tempfile import NamedTemporaryFile
-
-destination = Path(sys.argv[1])
-tokens = json.load(sys.stdin)
-if not isinstance(tokens, dict) or not tokens:
-    raise ValueError("Expected a Garmin token file JSON object")
-with NamedTemporaryFile(mode="w", dir=destination.parent, delete=False) as stream:
-    temp = Path(stream.name)
-    try:
-        json.dump(tokens, stream)
-        stream.close()
-        os.replace(temp, destination)
-    finally:
-        temp.unlink(missing_ok=True)
-' "$token_file" >>"$log" 2>&1; then
-        printf '%s\n' 'Could not initialize Garmin from GARMIN_TOKENS_JSON.' >&2
-        exit 1
-    fi
-fi
-unset garmin_secret
-
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
-if ! sport=$("$python_bin" -c '
+if ! sport=$(python -c '
 import json, sys
 from pathlib import Path
-
 sport = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("activity_type")
 if sport not in ("running", "cycling", "strength_training"):
-    raise ValueError("Set activity_type to running, cycling or strength_training")
+    raise ValueError("Unknown sport")
 print(sport)
 ' "$profile" 2>>"$log"); then
-    printf 'Invalid athlete profile. See the private runner log in %s.\n' "${run_dir##*/}" >&2
+    printf '%s\n' 'Set activity_type to running, cycling, or strength_training in ATHLETE_PROFILE_JSON.' >&2
     exit 1
 fi
 
-run_step 'Sync Garmin history' env WORKOUTPLANNER_GARMIN_NONINTERACTIVE=1 WORKOUTPLANNER_GARMIN_TOKEN_DIR="$token_dir" "$python_bin" download_activities.py \
+run_step 'Sync Garmin history' env WORKOUTPLANNER_GARMIN_NONINTERACTIVE=1 \
+    WORKOUTPLANNER_GARMIN_TOKEN_DIR="$token_dir" python download_activities.py \
     --activity-type all --limit 20 --output "$run_dir/activities.json"
-run_step 'Build planning input' "$python_bin" build_planning_input.py \
+# Keep the updated Garmin login out of files during model generation.
+garmin_secret=$(< "$token_dir/garmin_tokens.json")
+rm -f -- "$token_dir/garmin_tokens.json"
+run_step 'Build planning input' python build_planning_input.py \
     --activities "$run_dir/activities.json" --athlete "$profile" \
     --activity-type "$sport" --output "$run_dir/planning_input.json"
-run_step 'Generate workout' "$python_bin" generate_next_workout.py \
+
+write_json_secret "$codex_secret" CODEX_AUTH_JSON "$auth_file"
+unset codex_secret
+run_step 'Generate workout' python generate_next_workout.py \
     --planning-input "$run_dir/planning_input.json" --output "$run_dir/next_workout.json"
-run_step 'Validate Garmin workout' "$python_bin" upload_workouts.py \
-    "$run_dir/next_workout.json" --dry-run
+rm -f -- "$auth_file"
+run_step 'Validate Garmin workout' python upload_workouts.py "$run_dir/next_workout.json" --dry-run
 
 if [[ "${WORKOUTPLANNER_UPLOAD:-false}" == true ]]; then
-    run_step 'Upload workout to Garmin' env WORKOUTPLANNER_GARMIN_NONINTERACTIVE=1 WORKOUTPLANNER_GARMIN_TOKEN_DIR="$token_dir" "$python_bin" upload_workouts.py "$run_dir/next_workout.json"
+    write_json_secret "$garmin_secret" GARMIN_TOKENS_JSON "$token_dir/garmin_tokens.json"
+    unset garmin_secret
+    run_step 'Upload workout to Garmin' env WORKOUTPLANNER_GARMIN_NONINTERACTIVE=1 \
+        WORKOUTPLANNER_GARMIN_TOKEN_DIR="$token_dir" python upload_workouts.py "$run_dir/next_workout.json"
 fi
-printf 'Completed. Private runner files: %s\n' "${run_dir##*/}"
+printf '%s\n' 'Workout pipeline completed.'

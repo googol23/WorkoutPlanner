@@ -12,7 +12,7 @@ or schedules the reviewed workout in Garmin Connect.
 | [Bouldering](docs/activities/bouldering.md) | Activity export only | A mixed export contained the `bouldering` type |
 
 Run the workflow locally or configure the [weekly GitHub Actions workflow](docs/weekly-workout.md)
-on a private, dedicated runner. See the [workflow reference](docs/workflow.md)
+on a private repository using a GitHub-hosted runner. See the [workflow reference](docs/workflow.md)
 for data formats, troubleshooting and operational limits.
 
 ## Setup

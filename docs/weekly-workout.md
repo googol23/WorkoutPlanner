@@ -1,52 +1,38 @@
-# Weekly Garmin workout
+# Weekly Garmin workout on GitHub
 
-The workflow runs Sundays at 08:17 Europe/Berlin. It reads up to 20 recent
-Garmin activities, generates one workout for the local profile through Codex,
-validates it offline, then uploads the workout template. It leaves Garmin
-calendar placement to a separate command.
+The workflow runs Sundays at 08:17 Europe/Berlin on a GitHub-hosted Ubuntu
+runner. HomeOffice can be off. The repository must be private and the default
+branch must be `master`. The scheduled job syncs Garmin history, generates
+one workout with Codex, validates it, and uploads the workout template.
 
-## Runner setup
+## Configure once
 
-1. Make the repository private. Register a dedicated Linux self-hosted runner
-   with the custom label `workoutplanner-live`. Keep the runner online on
-   Sundays. Use a dedicated OS account and restrict repository write access
-   to people you trust to run code on that machine.
-2. From a local clone, under that same OS account, create the private Python
-   environment and install Codex if needed:
+Under **Settings → Secrets and variables → Actions → New repository secret**,
+create these three repository secrets:
 
-   ```bash
-   umask 077
-   mkdir -p "$HOME/.local/share/workoutplanner"
-   WORKOUTPLANNER_VENV="$HOME/.local/share/workoutplanner/venv" \
-     bash setup/bootstrap.sh --skip-os --install-codex
-   ```
+| Name | Value |
+| --- | --- |
+| `GARMIN_TOKENS_JSON` | Full JSON from `~/.garminconnect/garmin_tokens.json` after a successful local Garmin login. |
+| `CODEX_AUTH_JSON` | Full JSON from `~/.codex/auth.json` after signing in to Codex with ChatGPT. File-based credential storage is required. |
+| `ATHLETE_PROFILE_JSON` | Full athlete profile JSON. It must include a supported `activity_type`, `goals`, and `availability`. |
 
-3. Put the chosen athlete profile in
-   `~/.local/share/workoutplanner/athlete.json`. Set its `activity_type` to
-   `running`, `cycling`, or `strength_training`. Ensure the runner service
-   can find `codex` on its PATH. Run `codex login` as the runner account and
-   choose ChatGPT sign-in. The Garmin token does not authenticate ChatGPT.
-4. In **Settings → Secrets and variables → Actions**, add a repository
-   secret named `GARMIN_TOKENS_JSON`. Its value is the complete contents of
-   `~/.garminconnect/garmin_tokens.json` from a successful local
-   `python upload_workouts.py --login`. Treat this file as account access.
-   The workflow seeds a private token cache under
-   `~/.local/share/workoutplanner/garmin/` on the runner. Garmin can refresh
-   that cached session between runs. If the session expires, update the
-   secret with a fresh token file and remove the stale runner-side
-   `garmin_tokens.json` while the workflow is idle.
+Keep the login files out of Git, chat, and logs. GitHub stores these secrets
+and the trusted job receives their contents at runtime. Limit write access
+to trustworthy collaborators. Use names from the existing local profiles
+and update `ATHLETE_PROFILE_JSON` whenever goals or equipment change.
 
 ## First run
 
-In Actions, run **Weekly Garmin workout** on `master` with **Upload the
-validated workout to Garmin Connect** unchecked. Review the plan and rationale
-under `~/.local/share/workoutplanner/runs/` on the runner. A manual run with
-the box checked, or a scheduled Sunday run, uploads after validation.
-GitHub receives step status. Exports, workout plans and diagnostics stay
-in the run directory on the runner. Remove old run directories when you no
-longer need them.
+Open **Actions → Weekly Garmin workout → Run workflow** and select `master`.
+Leave **Upload** unchecked to test live sync and ChatGPT generation through
+offline validation. Once that passes, a manual run with **Upload** checked
+uploads the generated workout. A scheduled Sunday run uploads automatically.
+Verify the workout in Garmin Connect. The workflow creates a workout template,
+and calendar placement remains a separate operation.
 
-Expired credentials or generation failures stop the run before upload.
-Refresh the Garmin cache or sign in to Codex again as appropriate. If an upload fails after the
-request was sent, check Garmin Connect before retrying. The uploader skips
-identical workout names, and a fresh run can generate a different plan.
+The job reports step status. It does not attach exports, plans, or diagnostics
+to the run. Credentials and personal files are removed from temporary runner
+storage at the end of the job. The job does not save token changes back to
+GitHub, so if either cached session expires or its refresh token rotates,
+sign in again locally and replace the corresponding secret. If upload fails
+after the request was sent, check Garmin Connect before retrying.
