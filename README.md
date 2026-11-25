@@ -4,80 +4,123 @@ WorkoutPlanner exports completed Garmin activities, generates or adjusts a
 workout through the Codex CLI signed in with ChatGPT, and previews, uploads
 or schedules the reviewed workout in Garmin Connect.
 
-| Activity | Planning and Garmin upload | Live checks reported |
-| --- | --- | --- |
-| [Running](docs/activities/running.md) | Timed steps, repeats, pace or heart-rate targets | Generation, preview, upload and duplicate upload detection |
-| [Cycling](docs/activities/cycling.md) | Timed steps, effort cues and optional watt ranges | Generation, preview and detection of an existing upload |
-| [Gym strength](docs/activities/strength_training.md) | Catalog exercises, sets, reps, timed rests and optional loads | Exercise-set export, generation, preview, upload, scheduling and both duplicate checks |
-| [Bouldering](docs/activities/bouldering.md) | Activity export only | A mixed export contained the `bouldering` type |
+## Quick start
 
-The current workflow runs locally. The upcoming GitHub Actions work is tracked
-in the [roadmap](ROADMAP.md). See the [workflow reference](docs/workflow.md) for
-data formats, troubleshooting and operational limits.
+### 1. Clone and install
 
-## Setup
-
-From an existing clone on Debian or Ubuntu with Python 3.12 or newer:
+On Debian or Ubuntu, use Bash and Python 3.12 or newer. Clone with a GitHub
+account that can read the repository. If you already have a checkout, open
+it and pull the current `master` branch.
 
 ```bash
-bash setup/bootstrap.sh
+git clone https://github.com/googol23/WorkoutPlanner.git
+cd WorkoutPlanner
+bash setup/bootstrap.sh --install-codex &&
 source .venv/bin/activate
 ```
 
-Bootstrap installs system prerequisites through APT, creates the environment,
-installs the pinned `garminconnect[workout]==0.3.20` dependency, and runs
-offline tests. Pass `--install-codex` to opt in to the official Codex installer. It disables proxies for its network commands.
-Use `--skip-os` with preinstalled dependencies or `--skip-codex` for Garmin
-only (the default). On systems with an older default Python, set `WORKOUTPLANNER_PYTHON` to
-an installed Python 3.12+ interpreter. Other platforms can install the Python
-dependencies with `python -m pip install -r requirements.txt`.
+Bootstrap installs the APT prerequisites, Python dependencies and a compatible
+Codex CLI, then runs the offline tests. Use `--skip-os` if the prerequisites
+are already installed. If your system Python is older, set
+`WORKOUTPLANNER_PYTHON` to an installed Python 3.12+ interpreter with venv
+support. CPython 3.12 on x86-64 Linux uses the repository's hashed wheel lock.
 
-For Bash, the following helper runs network commands without proxy environment
-variables. Git also clears its configured proxy in the example below.
+### 2. Sign in locally
 
 ```bash
-direct() {
-  env -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY -u FTP_PROXY \
-      -u http_proxy -u https_proxy -u all_proxy -u ftp_proxy "$@"
-}
-direct git -c http.proxy= -c remote.origin.proxy= pull --ff-only origin master
-direct codex login
+export PATH="$HOME/.local/bin:$PATH"
+hash -r
+codex --version
+codex exec --help | grep -F -- '--ignore-user-config'
+codex login
+codex login status
+python upload_workouts.py --login
 ```
 
-Choose ChatGPT sign-in. Garmin login reuses saved tokens when present and may
-prompt for credentials and MFA when needed. The generator clears proxy
-environment variables in its Codex subprocess automatically.
+Choose **Sign in with ChatGPT**. The version and flag checks help confirm
+the shell is using the compatible CLI, particularly if an older Snap
+installation is also present. Garmin and Codex store their own credentials
+locally. Keep both login files out of Git.
 
-## Generate and preview
+### 3. Set your goals
 
-Export your history first. This example gathers up to ten completed activities
-across sports:
+Create the ignored `private/` directory and save the example below as
+`private/athlete_profiles.json`. Change the goals, time and equipment to
+match your situation. You can include a single profile or several.
 
 ```bash
-direct python download_activities.py --activity-type all --limit 10 --output all_activities.json
+mkdir -p -m 700 private
 ```
-
-Create `athlete.json` for running and use your own goal and time budget:
 
 ```json
 {
-  "activity_type": "running",
-  "goals": "Build endurance for a 10 km run",
-  "availability": "30 minutes for the next workout"
+  "running": {
+    "activity_type": "running",
+    "goals": "Build endurance for a 10 km run",
+    "availability": "30 minutes"
+  },
+  "cycling": {
+    "activity_type": "cycling",
+    "goals": "Prepare for multi-day bikepacking",
+    "availability": "90 minutes",
+    "equipment": "Outdoor cross bike"
+  },
+  "strength": {
+    "activity_type": "strength_training",
+    "goals": "Build full-body strength",
+    "availability": "60 minutes",
+    "equipment": "Gym with dumbbells, a bench and cable machines"
+  }
 }
 ```
 
+### 4. Sync and generate
+
+From the repository root with `.venv` active:
+
 ```bash
-python build_planning_input.py --activities all_activities.json \
-  --athlete athlete.json --activity-type running --output planning_input.json &&
-python generate_next_workout.py --planning-input planning_input.json &&
-python upload_workouts.py next_workout.json --dry-run
+activity_range=$(python -c 'from datetime import date, timedelta; d = date.today(); print(f"{d - timedelta(days=13)}..{d}")')
+python download_activities.py --activity-type all --time-range "$activity_range" \
+  --output private/recent_activities.json &&
+python -m workoutplanner.chatgpt.week \
+  --activities private/recent_activities.json \
+  --profiles private/athlete_profiles.json
 ```
 
-Use `cycling` or `strength_training` as the target with a matching
-sport-specific profile. The [strength profile guide](docs/activities/strength_training.md)
-includes an equipment and exercise preference example. For manual ChatGPT
-handoff, use `build_chatgpt_prompt.py` and review the prompt before sharing it.
+The planner considers the last 14 calendar days across sports and generates
+options for the next seven days. It runs when you invoke it. The output path
+under `private/weekly/` contains a plan per usable profile and a
+`rationale.txt` explaining priorities and how to space multiple sessions.
+Review the rationale before choosing a workout. If no usable workout is
+available for a profile, the rationale explains the deferral.
+
+### 5. Preview the workout you choose
+
+Replace `RUN_DIRECTORY` with the folder name printed by generation:
+
+```bash
+python upload_workouts.py private/weekly/RUN_DIRECTORY/running.json --dry-run
+```
+
+Run the same command without `--dry-run` to upload that workout. To upload
+all workouts and replace the previous managed batch, see
+[managed publication](docs/workflow.md#replace-the-previous-garmin-batch).
+After completing a workout and syncing your watch, repeat step 4.
+
+## Supported activities
+
+| Activity | Planning and Garmin upload |
+| --- | --- |
+| [Running](docs/activities/running.md) | Timed steps, repeats, pace or heart-rate targets |
+| [Cycling](docs/activities/cycling.md) | Timed steps, effort cues and optional watt ranges |
+| [Gym strength](docs/activities/strength_training.md) | Catalog exercises, sets, reps, rests and optional loads |
+| [Bouldering](docs/activities/bouldering.md) | Activity export only |
+
+See the [workflow reference](docs/workflow.md) for input formats, private
+outputs, debugging, and upload limits. The single-profile commands
+`build_planning_input.py` and `generate_next_workout.py` remain available.
+On other platforms, install Python dependencies in an environment with
+`python -m pip install -r requirements.txt` and install Codex separately.
 
 ## Upload and schedule
 
@@ -86,14 +129,14 @@ template. To schedule, add `"scheduled_date": "YYYY-MM-DD"` to each workout
 you want on the calendar and check that the date appears in the dry-run.
 
 ```bash
-direct python upload_workouts.py next_workout.json
+python upload_workouts.py next_workout.json
 ```
 
 For calendar placement:
 
 ```bash
 python upload_workouts.py next_workout.json --dry-run --schedule &&
-direct python upload_workouts.py next_workout.json --schedule
+python upload_workouts.py next_workout.json --schedule
 ```
 
 An exact existing workout name is skipped. Scheduling also skips an existing

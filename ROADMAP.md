@@ -14,18 +14,13 @@ Live calendar deduplication was confirmed using a strength workout. The tests
 cover common scheduling behavior across the uploader. Bouldering remains
 export-only for the current scope.
 
-## Next phase: GitHub Actions
+## Local multi-sport planning
 
-1. Add credential-free CI for pushes and pull requests. Install the pinned
-   dependencies, run the offline suite, and preview the synthetic plan.
-2. Decide where a private live workflow should run and how it will authenticate
-   to Garmin and Codex without exposing athlete files or credentials. Verify
-   whether the chosen account sign-in works unattended on that runner.
-3. Add a manually triggered generation workflow with profile and activity
-   selection. Keep its first live check read-only on Garmin and review the
-   plan before enabling writes.
-4. Add reviewed upload and optional scheduling. Serialize live runs and verify
-   retries against Garmin before considering a recurring trigger.
+The on-demand planner uses a shared recent Garmin history to generate and
+prioritize workout options for named profiles. The athlete verified live
+generation and a Garmin dry-run. Managed batch replacement has offline
+coverage and still needs live verification. The project runs locally and
+has no GitHub-hosted workout workflow.
 
 ## Activity context
 

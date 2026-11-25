@@ -50,11 +50,30 @@ if "$venv_dir/bin/python" -c 'import platform, sys; raise SystemExit(not (platfo
 fi
 PIP_CONFIG_FILE=/dev/null "$venv_dir/bin/python" -m pip install --only-binary=:all: -r "$requirements"
 
-if "$install_codex" && ! command -v codex >/dev/null; then
-    codex_installer=$(mktemp)
-    trap 'rm -f -- "$codex_installer"' EXIT
-    curl -fsSL --proto '=https' --proto-redir '=https' https://chatgpt.com/codex/install.sh -o "$codex_installer"
-    sh "$codex_installer"
+codex_supported() {
+    local help_text
+    help_text=$(codex exec --help 2>/dev/null) &&
+        [[ "$help_text" == *--ignore-user-config* &&
+           "$help_text" == *--ephemeral* &&
+           "$help_text" == *--output-schema* &&
+           "$help_text" == *--output-last-message* ]]
+}
+
+if "$install_codex"; then
+    export PATH="$HOME/.local/bin:$PATH"
+    if ! codex_supported; then
+        codex_installer=$(mktemp)
+        trap 'rm -f -- "$codex_installer"' EXIT
+        curl -fsSL --proto '=https' --proto-redir '=https' https://chatgpt.com/codex/install.sh -o "$codex_installer"
+        sh "$codex_installer" </dev/null
+        hash -r
+    fi
+    if ! codex_supported; then
+        printf '%s\n' 'Codex is missing required exec options. Verify the installed binary and PATH.' >&2
+        exit 1
+    fi
+    codex --version
+    printf '%s\n' 'In your current shell, run: export PATH="$HOME/.local/bin:$PATH"'
 fi
 
 (cd -- "$repo_dir" && "$venv_dir/bin/python" -m unittest discover -s tests)
