@@ -15,14 +15,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      HTTP_PROXY: ""
-      HTTPS_PROXY: ""
-      ALL_PROXY: ""
-      FTP_PROXY: ""
-      http_proxy: ""
-      https_proxy: ""
-      all_proxy: ""
-      ftp_proxy: ""
       PIP_CONFIG_FILE: /dev/null
     steps:
       - name: Check out source
@@ -35,6 +27,7 @@ jobs:
           python-version: "3.12"
       - name: Install locked dependencies
         run: |
+          unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_proxy ftp_proxy PIP_PROXY
           python -m pip install -r setup/requirements-linux-x86_64-py312.lock
           python -m pip check
       - name: Run offline tests
