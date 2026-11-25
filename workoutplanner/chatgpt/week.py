@@ -168,6 +168,7 @@ def main(argv=None):
     parser.add_argument("--lookback-days", type=int, default=14)
     parser.add_argument("--as-of", type=date.fromisoformat, default=date.today(), help="local planning date")
     parser.add_argument("--output-dir", type=Path, default=Path("private/weekly"))
+    parser.add_argument("--debug", action="store_true", help="save Codex stderr in a private run directory")
     parser.add_argument("--prompt-only", type=Path, help="write the prompt locally without calling Codex")
     args = parser.parse_args(argv)
     if not 1 <= args.lookback_days <= 90:
@@ -181,9 +182,15 @@ def main(argv=None):
             write_private(args.prompt_only, prompt + "\n")
             return 0
 
-        rationale, priority, plans = validate_week_response(run_codex(prompt), profiles)
-        args.output_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-        run_dir = Path(mkdtemp(prefix=f"{args.as_of}-", dir=args.output_dir))
+        run_dir = None
+        if args.debug:
+            args.output_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+            run_dir = Path(mkdtemp(prefix=f"{args.as_of}-", dir=args.output_dir))
+        response = run_codex(prompt, debug_file=run_dir / "codex.debug.txt" if run_dir else None)
+        rationale, priority, plans = validate_week_response(response, profiles)
+        if run_dir is None:
+            args.output_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+            run_dir = Path(mkdtemp(prefix=f"{args.as_of}-", dir=args.output_dir))
         write_private(run_dir / "rationale.txt", rationale + "\n")
         for name in priority:
             write_private(run_dir / f"{name}.json", json.dumps(
