@@ -5,10 +5,10 @@ umask 077
 
 garmin_secret=${GARMIN_TOKENS_JSON:-}
 codex_secret=${CODEX_AUTH_JSON:-}
-athlete_secret=${ATHLETE_PROFILE_JSON:-}
-unset GARMIN_TOKENS_JSON CODEX_AUTH_JSON ATHLETE_PROFILE_JSON
+athlete_secret=${ATHLETE_PROFILES_JSON:-}
+unset GARMIN_TOKENS_JSON CODEX_AUTH_JSON ATHLETE_PROFILES_JSON
 if [[ -z "$garmin_secret" || -z "$codex_secret" || -z "$athlete_secret" ]]; then
-    printf '%s\n' 'Set GARMIN_TOKENS_JSON, CODEX_AUTH_JSON, and ATHLETE_PROFILE_JSON in Actions secrets.' >&2
+    printf '%s\n' 'Set GARMIN_TOKENS_JSON, CODEX_AUTH_JSON, and ATHLETE_PROFILES_JSON in Actions secrets.' >&2
     exit 1
 fi
 
@@ -48,8 +48,7 @@ with Path(sys.argv[1]).open("x", encoding="utf-8") as stream:
 }
 
 write_json_secret "$garmin_secret" GARMIN_TOKENS_JSON "$token_dir/garmin_tokens.json"
-write_json_secret "$athlete_secret" ATHLETE_PROFILE_JSON "$profile"
-unset garmin_secret athlete_secret
+unset garmin_secret
 
 run_step() {
     local name=$1
@@ -65,17 +64,31 @@ run_step() {
 }
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
-if ! sport=$(python -c '
-import json, sys
+if ! sport=$(printf '%s' "$athlete_secret" | python -c '
+import json
+import sys
 from pathlib import Path
-sport = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("activity_type")
+
+profiles = json.load(sys.stdin)
+if not isinstance(profiles, dict):
+    raise ValueError("Expected an object of named profiles")
+profile = profiles.get(sys.argv[1])
+if not isinstance(profile, dict):
+    raise ValueError("Profile not found")
+sport = profile.get("activity_type")
 if sport not in ("running", "cycling", "strength_training"):
     raise ValueError("Unknown sport")
+for field in ("goals", "availability"):
+    if not isinstance(profile.get(field), str) or not profile[field].strip():
+        raise ValueError(f"Missing {field}")
+with Path(sys.argv[2]).open("x", encoding="utf-8") as stream:
+    json.dump(profile, stream)
 print(sport)
-' "$profile" 2>>"$log"); then
-    printf '%s\n' 'Set activity_type to running, cycling, or strength_training in ATHLETE_PROFILE_JSON.' >&2
+' "${WORKOUTPLANNER_PROFILE:-running}" "$profile" 2>>"$log"); then
+    printf '%s\n' 'Check that ATHLETE_PROFILES_JSON contains the selected profile with activity_type, goals, and availability.' >&2
     exit 1
 fi
+unset athlete_secret
 
 run_step 'Sync Garmin history' env WORKOUTPLANNER_GARMIN_NONINTERACTIVE=1 \
     WORKOUTPLANNER_GARMIN_TOKEN_DIR="$token_dir" python download_activities.py \

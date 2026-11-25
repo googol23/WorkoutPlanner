@@ -6,6 +6,10 @@ on:
       timezone: "Europe/Berlin"
   workflow_dispatch:
     inputs:
+      profile:
+        description: Profile name (blank uses the Sunday default)
+        type: string
+        default: ""
       upload:
         description: Upload the validated workout to Garmin Connect
         type: boolean
@@ -41,7 +45,8 @@ jobs:
       - name: Sync, generate, and validate workout
         env:
           CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
-          ATHLETE_PROFILE_JSON: ${{ secrets.ATHLETE_PROFILE_JSON }}
+          ATHLETE_PROFILES_JSON: ${{ secrets.ATHLETE_PROFILES_JSON }}
+          WORKOUTPLANNER_PROFILE: ${{ inputs.profile || vars.WORKOUTPLANNER_SUNDAY_PROFILE || 'running' }}
           GARMIN_TOKENS_JSON: ${{ secrets.GARMIN_TOKENS_JSON }}
           WORKOUTPLANNER_UPLOAD: ${{ github.event_name == 'schedule' || inputs.upload }}
         run: bash setup/weekly-workout.sh

@@ -14,12 +14,59 @@ create these three repository secrets:
 | --- | --- |
 | `GARMIN_TOKENS_JSON` | Full JSON from `~/.garminconnect/garmin_tokens.json` after a successful local Garmin login. |
 | `CODEX_AUTH_JSON` | Full JSON from `~/.codex/auth.json` after signing in to Codex with ChatGPT. File-based credential storage is required. |
-| `ATHLETE_PROFILE_JSON` | Full athlete profile JSON. It must include a supported `activity_type`, `goals`, and `availability`. |
+| `ATHLETE_PROFILES_JSON` | A JSON object keyed by profile name. Each profile includes `activity_type`, `goals`, and `availability`. |
 
 Keep the login files out of Git, chat, and logs. GitHub stores these secrets
 and the trusted job receives their contents at runtime. Limit write access
-to trustworthy collaborators. Use names from the existing local profiles
-and update `ATHLETE_PROFILE_JSON` whenever goals or equipment change.
+to trustworthy collaborators. Update `ATHLETE_PROFILES_JSON` when a profile
+changes. The selected profile is the only one used for generation.
+
+### Profile example
+
+```json
+{
+  "running": {
+    "activity_type": "running",
+    "goals": "Build endurance for a 10 km run",
+    "availability": "30 minutes"
+  },
+  "cycling": {
+    "activity_type": "cycling",
+    "goals": "Build endurance for longer weekend rides",
+    "availability": "90 minutes",
+    "equipment": "Outdoor road bike"
+  },
+  "strength": {
+    "activity_type": "strength_training",
+    "goals": "Build full-body strength",
+    "availability": "40 minutes",
+    "equipment": "Dumbbells, bench, leg press and cable station",
+    "preferred_machines": ["Leg Press"],
+    "preferred_exercises": ["Dumbbell Bench Press"]
+  }
+}
+```
+
+Under **Settings → Secrets and variables → Actions → Variables**, set
+`WORKOUTPLANNER_SUNDAY_PROFILE` to a profile name such as `cycling`.
+If unset, Sundays use `running`. For a manual run, enter a profile name
+or leave it blank to use the Sunday default. Multiple names can use the
+same sport.
+
+### Codex login secret
+
+`CODEX_AUTH_JSON` is the complete file created by Codex after ChatGPT login.
+On the machine where you sign in, use file-based credential storage if
+needed:
+
+```bash
+codex -c 'cli_auth_credentials_store="file"' login
+codex -c 'cli_auth_credentials_store="file"' login status
+test -s "$HOME/.codex/auth.json" && echo "Codex login file exists"
+```
+
+Choose ChatGPT sign-in and copy the actual file into the secret value in
+GitHub. A hand-written JSON example cannot authenticate a run.
 
 ## First run
 
