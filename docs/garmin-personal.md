@@ -28,7 +28,7 @@ installation run `sudo apt-get install libsecret-tools`.
 The check also works without the comparison file. A successful read proves
 account access. The check reports separately whether the activity detail
 response includes matching exercise-set records. Missing sets mean that
-coverage still needs investigation when migrating the downloader.
+coverage required checking the original FIT file. That FIT check is now incorporated into normal Personal API strength sync.
 
 The client sends credentials directly to Garmin over HTTPS. It exchanges the
 stored key for an in-memory access token each time the check runs. Repeat
@@ -69,17 +69,20 @@ differ. The optional decoder is independent of Garmin login and workout uploads.
 
 ### Opt-in activity sync
 
-Pass `--source personal` to `download_activities.py` with the existing
-`--activity-id`, `--limit` or inclusive `--time-range` options. Use a
-separate output file while comparing the readers. Install the FIT decoder
-as above for strength, running and cycling history. The desktop CLI still uses the project environment.
+Use `--source personal` with `download_activities.py` and the existing
+`--activity-id`, `--limit` or inclusive `--time-range` options. This is
+the normal activity sync path. The `legacy` source is retained for reader
+comparison. Use a separate output file while comparing the two readers. Install the FIT
+decoder as above for strength, running and cycling history. The standalone
+reader environment also supports local workout generation.
 The Personal API supplies summaries across sports. For strength it also
 reads recorded sets from the original FIT with loads in kilograms. No
 exercise name is inferred from reps, load or a broad exercise category.
 Running and cycling exports read recorded laps and session heart-rate and power
 zone durations from the original FIT. Availability depends on the device file.
 Multisession files are skipped for these fields. Zone boundaries, detailed
-samples, weather and workout steps still require the default reader.
+samples, weather and workout steps are currently available only through the
+legacy reader.
 The personal export uses the existing JSON format accepted by the local planner.
 
 ### Compare running and cycling planning inputs
@@ -105,8 +108,8 @@ comparison and leave recorded values intact.
 
 ### Standalone reader environment
 
-The Personal API downloader can run in a separate Python 3.12+ environment
-with only the pinned FIT decoder. From the repository root:
+The Personal API downloader and planner run in a separate Python 3.12+
+environment with only the pinned FIT decoder. From the repository root:
 
 ```bash
 (
@@ -124,7 +127,8 @@ Omit `--skip-os` on Debian or Ubuntu to install the system dependencies,
 including the desktop keyring tool. Add `--install-codex` if you also need
 the Codex CLI for workout generation. Use the desktop session containing your
 Garmin Personal API key.
-Live publishing and the legacy reader still use the main project environment.
+Live publishing uses `.venv`, which contains `garminconnect`. The legacy
+reader also requires that environment and is intended for parity comparisons.
 
 To generate workout options in the reader environment, use a recent mixed
 export spanning the planning window. The one-record installation check

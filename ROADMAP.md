@@ -33,25 +33,22 @@ activity note. Keep personal history and athlete notes outside the repository.
 - [Gym strength training](docs/activities/strength_training.md)
 - [Bouldering](docs/activities/bouldering.md)
 
-## Replacing the Garmin client
+## Garmin integration status
 
-1. Separate activity reads and workout publishing. The CLI now opens each
-   client independently. The opt-in Personal API reader runs without
-   `garminconnect`. Publishing uses the legacy local login.
-2. Implement personal-key authentication for the desktop reader.
-3. Compare activity exports from both readers for the same date range and
-   switch once metric coverage is verified.
-4. Workout encoding and strength exercise identifier resolution now run locally.
-   Offline dry-runs for all three sports require only the Python standard library.
-5. Live publishing, scheduling by ID and managed deletion passed using the
-   existing local publisher. An official replacement requires access to
-   [Garmin's Training API](https://developer.garmin.com/gc-developer-program/enterprise/training-api/)
-   and verification of the publisher operations below. Garmin's overview
-   lists Training API under Starter and Enterprise, while the dedicated page
-   specifies Enterprise. Confirm the required access with Garmin before
-   building against it.
-6. Remove the legacy dependency after a replacement publisher passes the
-   complete workflow in a clean installation.
+The activity reader now uses WorkoutPlanner's Garmin Personal API client for
+normal sync, without the `garminconnect` package. An isolated environment
+containing only the FIT decoder passed live sync and multi-sport generation.
+The legacy reader remains available for historical parity comparisons.
+
+The `garminconnect` dependency is retained for live workout publishing,
+scheduling and managed cleanup. Workout JSON encoding and exercise resolution
+are implemented in WorkoutPlanner. Live uploads and managed replacement have
+been verified for running, cycling and strength.
+
+Garmin documents workout publishing in the Training API. Its overview
+describes Training API access under Starter and Enterprise tiers, while its
+dedicated page says Enterprise access only. Confirm program access and
+workout operations with Garmin before replacing the publisher.
 
 ### Operations the replacement must cover
 
@@ -68,10 +65,6 @@ capture running splits, cycling power and strength loads for reuse by a
 future Android client. The Python method names in
 [the desktop interfaces](workoutplanner/garmin/contracts.py) describe the
 current adapter. Android can implement the same data behavior in Kotlin.
-
-Milestone 2 adds an opt-in Linux desktop login and single-activity probe.
-Use the [Personal API check](docs/garmin-personal.md) to verify access on
-your account. The normal sync and upload commands still use the SDK.
 
 The athlete verified a 14-day Personal API sync, live sync in a FIT-only
 environment, and generation for all three sports from Personal API history.

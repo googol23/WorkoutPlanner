@@ -2,6 +2,8 @@
 
 ## Garmin export
 
+For normal activity sync, pass `--source personal`. This uses WorkoutPlanner's small Garmin Personal API client and the expiring personal key stored in the desktop keyring. It does not import the Garmin Connect wrapper. The default `legacy` source remains for the parity comparison documented in [Garmin Personal API](garmin-personal.md).
+
 The exporter is read-only. Its default is the newest completed activity with
 the exact `running` type key. Use `--activity-type all` for mixed history or
 specify the exact Garmin key. Parent sport keys do not automatically include
@@ -48,7 +50,7 @@ The generator submits the prompt through an ephemeral `codex exec` session
 using ChatGPT sign-in. It needs network access and available account allowance.
 It saves the rationale beside the workout as `<output>.rationale.txt` and
 writes a validated workout JSON only when the response contains a plan. Review the output for training suitability, schedule
-and equipment. Exercise catalog resolution is checked by the uploader.
+and equipment. Exercise catalog resolution is checked by WorkoutPlanner's local encoder before the workout is saved.
 
 To adjust a named workout, supply `--existing-plan PLAN.json --workout-name NAME`
 to either prompt builder or generator. Use `--output` to keep the generated
@@ -85,9 +87,7 @@ months. A local lock serializes uploader processes using the same Garmin token d
 Writes from other machines, delayed visibility and partial failures can still
 cause inconsistent results. Check Garmin Connect before retrying.
 
-Garmin is accessed through the unofficial pinned `garminconnect` dependency.
-Service changes, rate limits, or expired tokens can interrupt operation.
-Keep its saved-token directory private, along with Codex credentials.
+Workout uploads, scheduling and managed batch cleanup use the pinned `garminconnect` publishing adapter and its local saved-token directory. Activity sync and planning use Garmin's Personal API key in the desktop keyring. Service changes, rate limits, or expired credentials can interrupt either connection. Keep both credential stores private, along with Codex credentials.
 Use `--debug` for Codex failures. It saves CLI stderr beside the workout as
 `<output>.debug.txt` instead of sending it to the terminal. Inspect it locally
 before sharing. The Codex subprocess inherits only an allowlist of runtime
@@ -99,8 +99,7 @@ the live checks separately.
 
 ## Dependency verification
 
-Bootstrap uses a hash-locked wheel set for x86-64 Linux with CPython 3.12.
-Other platforms use pinned constraints and wheels. Hashes verify the
+The full bootstrap installs the uploader dependencies using a hash-locked wheel set on x86-64 Linux with CPython 3.12. Other platforms use pinned constraints and wheels. The `--reader-only` setup creates an isolated reader environment with the FIT decoder and does not install `garminconnect`. Hashes verify the
 downloaded files against the repository lock. Dependency advisory checks
 remain a separate step.
 

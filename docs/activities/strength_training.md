@@ -32,8 +32,9 @@ matches for other unknown names. Suggestions require manual selection.
 ## Local exercise catalog
 
 The repository ships the [complete exercise catalog](../../skills/workout-planner/references/garmin-strength-exercises.json)
-from `garminconnect==0.3.20` with 1,527 exact names grouped by Garmin category.
-Tests compare the local names with the pinned library. The strength prompt
+with 1,527 exact names grouped by Garmin category. The catalog is stored in
+the project and the uploader resolves names locally. Its original contents
+were cross-checked against Garmin entries exposed by the pinned uploader library. The strength prompt
 includes a default selection plus matches for preferred exercises, preferred
 machine names and exercises already in a workout being adjusted. The full
 catalog stays local.

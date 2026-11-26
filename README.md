@@ -34,13 +34,18 @@ codex --version
 codex exec --help | grep -F -- '--ignore-user-config'
 codex login
 codex login status
+python -m workoutplanner.garmin.personal login
 python upload_workouts.py --login
 ```
 
+The Personal API login asks for Garmin's expiring API key in a hidden prompt
+and stores it in your desktop keyring. The uploader login establishes the
+separate local session used only when publishing workouts.
+
 Choose **Sign in with ChatGPT**. The version and flag checks help confirm
 the shell is using the compatible CLI, particularly if an older Snap
-installation is also present. Garmin and Codex store their own credentials
-locally. Keep both login files out of Git.
+installation is also present. Garmin Personal API credentials stay in the desktop keyring. The publishing
+session and Codex credentials are stored locally. Keep credential files out of Git.
 
 ### 3. Set your goals
 
@@ -80,7 +85,7 @@ From the repository root with `.venv` active:
 
 ```bash
 activity_range=$(python -c 'from datetime import date, timedelta; d = date.today(); print(f"{d - timedelta(days=13)}..{d}")')
-python download_activities.py --activity-type all --time-range "$activity_range" \
+python download_activities.py --source personal --activity-type all --time-range "$activity_range" \
   --output private/recent_activities.json &&
 python -m workoutplanner.chatgpt.week \
   --activities private/recent_activities.json \
@@ -150,7 +155,7 @@ beside the workout instead of printing it.
 
 | Path | Responsibility |
 | --- | --- |
-| `workoutplanner/garmin/` | Separate read and write tools, shared Garmin authentication, and strength conversion |
+| `workoutplanner/garmin/` | Personal API reader, local workout encoder, and Garmin publishing adapter |
 | `workoutplanner/chatgpt/` | Compact prompt construction and authenticated generation |
 | `workoutplanner/planning_input.py`, `workoutplanner/workout_schema.py` | Shared JSON input and plan validation |
 | `skills/workout-planner/` | Shared skill, sport subskills, evidence and local exercise catalog |
@@ -170,4 +175,4 @@ options in one local command. The planner ranks the options and explains how
 to space them if you do more than one. The [multi-sport workflow](docs/workflow.md#local-multi-sport-planning)
 shows the profile format, date-range export, and generation command.
 
-For the new read-only desktop client, see [Personal API key setup and activity check](docs/garmin-personal.md).
+Activity downloads use Garmin's Personal API client in WorkoutPlanner. The garminconnect package is used by the workout publisher. See the [Personal API setup](docs/garmin-personal.md) for credentials and standalone reader setup.
