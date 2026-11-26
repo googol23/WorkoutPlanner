@@ -190,3 +190,11 @@ with the publish command above. The journal records partial progress and the
 next batch cannot replace an unfinished one. New templates are uploaded
 before any old templates are retired. Publication creates workout templates.
 It is separate from calendar scheduling.
+
+### Offline workout validation
+
+Run `python -S upload_workouts.py PLAN.json --dry-run` to validate a plan
+with Python site packages disabled. WorkoutPlanner encodes running, cycling
+and strength payloads locally. Its strength identifier mapping was checked
+against all 1,527 entries in the pinned 0.3.20 catalog. Live publishing still
+uses the Garmin client's JSON upload method and your existing local login.

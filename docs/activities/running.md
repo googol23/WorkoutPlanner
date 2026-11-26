@@ -29,3 +29,5 @@ All three running laps matched on cadence, heart rate, power, distance and
 timer duration. Average and maximum speed differed on all three.
 All shared zones matched on time. Moving duration and zone lower bounds
 appeared only in the legacy export for this session.
+Across those laps, speed differences stayed below 1.17 × 10⁻⁷ m/s. Every
+extra FIT zone had zero recorded time.

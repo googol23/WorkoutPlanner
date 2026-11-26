@@ -17,7 +17,7 @@ exercise names, rep counts and load units where returned. The athlete confirmed 
 
 ## Upload acceptance
 
-The adapter uses the pinned Garmin catalog and typed strength workout model.
+The adapter uses the local Garmin exercise catalog and JSON workout encoder.
 It converts sets, rep targets, timed rest, and optional loads. Offline tests
 cover conversion, unknown exercise rejection, and duplicate-name handling.
 The athlete reported that the local generation, dry-run and upload workflow

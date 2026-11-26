@@ -13,7 +13,7 @@ from garminconnect import (
 )
 
 from workoutplanner.garmin.auth import TOKEN_DIR, open_workout_publisher
-from workoutplanner.garmin.contracts import WorkoutPublisher, upload_for_sport
+from workoutplanner.garmin.contracts import WorkoutPublisher
 from workoutplanner.garmin.upload import build_workout, existing_workouts, upload_lock
 from workoutplanner.planning_input import read_object
 from workoutplanner.private_io import write_private
@@ -44,7 +44,7 @@ def prepare_batch(plans):
         marker = hashlib.sha256(f"{digest}:{profile}".encode()).hexdigest()[:24]
         name = f"[WP-{marker}] {source['name'][:60]}"
         sport = plan["sport"]
-        batch[name] = (sport, build_workout({**source, "name": name}, sport=sport))
+        batch[name] = build_workout({**source, "name": name}, sport=sport)
     return digest, batch
 
 
@@ -63,7 +63,7 @@ def publish_batch(api: WorkoutPublisher, state_path, digest, batch):
 
     library = existing_workouts(api)
     uploaded = pending["workouts"]
-    for name, (sport, model) in batch.items():
+    for name, payload in batch.items():
         matches = library.get(name, [])
         if len(matches) > 1:
             raise ValueError(f"Multiple Garmin workouts match managed name {name!r}")
@@ -75,7 +75,7 @@ def publish_batch(api: WorkoutPublisher, state_path, digest, batch):
         if matches:
             result = matches[0]
         else:
-            result = upload_for_sport(api, sport, model)
+            result = api.upload_workout(payload)
         workout_id = result.get("workoutId") if isinstance(result, dict) else None
         if not str(workout_id).isdigit() or int(workout_id) < 1:
             raise ValueError("Garmin returned no valid workout ID. Check Garmin before retrying.")

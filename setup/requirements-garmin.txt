@@ -1,2 +1,2 @@
 -c constraints-garmin.txt
-garminconnect[workout]==0.3.20
+garminconnect==0.3.20

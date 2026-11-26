@@ -40,7 +40,8 @@ activity note. Keep personal history and athlete notes outside the repository.
 2. Implement personal-key authentication for the desktop reader.
 3. Compare activity exports from both readers for the same date range and
    switch once metric coverage is verified.
-4. Replace SDK workout models and strength exercise identifier resolution.
+4. Workout encoding and strength exercise identifier resolution now run locally.
+   Offline dry-runs for all three sports require only the Python standard library.
 5. Verify supported publishing access, including scheduling and safe deletion.
 6. Remove the SDK after a clean installation passes the complete workflow.
 

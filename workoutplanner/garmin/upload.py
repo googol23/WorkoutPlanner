@@ -2,90 +2,14 @@
 """Validate, upload and optionally schedule JSON workouts."""
 
 import argparse
-import math
 import sqlite3
 from contextlib import contextmanager
 import sys
 from datetime import date
 
-from garminconnect import (
-    GarminConnectAuthenticationError, GarminConnectConnectionError,
-    GarminConnectTooManyRequestsError,
-)
-from garminconnect.workout import (
-    CustomHeartRateTarget,
-    CustomPowerTarget,
-    CyclingWorkout,
-    PaceTarget,
-    RunningWorkout,
-    WorkoutSegment,
-    create_cooldown_step,
-    create_interval_step,
-    create_recovery_step,
-    create_repeat_group,
-    create_targeted_interval_step,
-    create_warmup_step,
-)
-
-from workoutplanner.garmin.auth import TOKEN_DIR, open_workout_publisher
-from workoutplanner.garmin.contracts import WorkoutPublisher, upload_for_sport
-from workoutplanner.garmin.strength import build_strength_workout
+from workoutplanner.garmin.contracts import WorkoutPublisher
+from workoutplanner.garmin.encoding import build_workout
 from workoutplanner.workout_schema import InputError, duration, read_plan, validate_plan
-SPORT = {"sportTypeId": 1, "sportTypeKey": "running"}
-CYCLING_SPORT = {"sportTypeId": 2, "sportTypeKey": "cycling"}
-
-
-def build_workout(source, *, sport="running"):
-    if sport == "strength_training":
-        return build_strength_workout(source)
-    order = 0
-
-    def convert(steps):
-        nonlocal order
-        result = []
-        for step in steps:
-            order += 1
-            current_order = order
-            kind = step["type"]
-            if kind == "repeat":
-                children = convert(step["steps"])
-                result.append(create_repeat_group(step["count"], children, current_order))
-                continue
-            seconds = step["duration_seconds"]
-            target = step.get("target")
-            intensity = None
-            if target is not None and target["type"] == "pace":
-                intensity = PaceTarget(
-                    lower_limit=1000 / target["slow_seconds_per_km"],
-                    upper_limit=1000 / target["fast_seconds_per_km"],
-                )
-            elif target is not None and target["type"] == "heart_rate":
-                intensity = CustomHeartRateTarget(lower_limit=target["min_bpm"], upper_limit=target["max_bpm"])
-            if "power_watts" in step:
-                watts = step["power_watts"]
-                intensity = CustomPowerTarget(lower_limit=watts["min"], upper_limit=watts["max"])
-            if kind in {"run", "interval", "ride"}:
-                item = create_targeted_interval_step(seconds, current_order, target=intensity) if intensity else create_interval_step(seconds, current_order)
-            else:
-                helper = {"warmup": create_warmup_step, "recovery": create_recovery_step, "cooldown": create_cooldown_step}[kind]
-                item = helper(seconds, current_order)
-                if intensity:
-                    item.targetType = {"workoutTargetTypeId": intensity.target_type, "workoutTargetTypeKey": intensity.target_type_key, "displayOrder": 1}
-                    item.targetValueOne = intensity.lower_limit
-                    item.targetValueTwo = intensity.upper_limit
-            description = step.get("effort", step.get("description"))
-            if description:
-                item.description = description
-            result.append(item)
-        return result
-
-    model, segment_sport = (CyclingWorkout, CYCLING_SPORT) if sport == "cycling" else (RunningWorkout, SPORT)
-    return model(
-        workoutName=source["name"],
-        description=source.get("description"),
-        estimatedDurationInSecs=math.ceil(duration(source["steps"])),
-        workoutSegments=[WorkoutSegment(segmentOrder=1, sportType=segment_sport, workoutSteps=convert(source["steps"]))],
-    )
 
 
 def existing_workouts(api: WorkoutPublisher):
@@ -136,6 +60,8 @@ def upload_lock(directory):
 
 
 def upload_plan(api: WorkoutPublisher, workouts, schedule=False, *, sport="running"):
+    from garminconnect import GarminConnectConnectionError
+
     library = existing_workouts(api)
     dates = [workout["scheduled_date"] for workout in workouts if "scheduled_date" in workout] if schedule else []
     calendar = existing_schedule(api, dates) if dates else set()
@@ -152,7 +78,7 @@ def upload_plan(api: WorkoutPublisher, workouts, schedule=False, *, sport="runni
         else:
             model = build_workout(source, sport=sport)
             try:
-                result = upload_for_sport(api, sport, model)
+                result = api.upload_workout(model)
             except (GarminConnectConnectionError, OSError) as exc:
                 raise RuntimeError("Upload outcome is uncertain. Check Garmin Connect before retrying.") from exc
             workout_id = result.get("workoutId") if isinstance(result, dict) else None
@@ -173,6 +99,22 @@ def upload_plan(api: WorkoutPublisher, workouts, schedule=False, *, sport="runni
                 print(f"Scheduled: {name} on {source['scheduled_date']}")
 
 
+def live_upload(workouts=None, *, sport="running", schedule=False):
+    from garminconnect import (
+        GarminConnectAuthenticationError, GarminConnectConnectionError, GarminConnectTooManyRequestsError,
+    )
+    from workoutplanner.garmin.auth import TOKEN_DIR, open_workout_publisher
+
+    try:
+        if workouts is None:
+            open_workout_publisher()
+        else:
+            with upload_lock(TOKEN_DIR):
+                upload_plan(open_workout_publisher(), workouts, schedule, sport=sport)
+    except (GarminConnectAuthenticationError, GarminConnectConnectionError, GarminConnectTooManyRequestsError) as exc:
+        raise RuntimeError(str(exc)) from exc
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("plan", nargs="?", help="JSON plan file")
@@ -186,7 +128,7 @@ def main(argv=None):
         parser.error("a JSON plan file or --login is required")
     try:
         if args.login:
-            open_workout_publisher()
+            live_upload()
             return 0
         plan = read_plan(args.plan)
         workouts = validate_plan(plan)
@@ -201,12 +143,9 @@ def main(argv=None):
                            else duration(source["steps"]))
                 print(f"DRY RUN: {source['name']} ({seconds} seconds)" + (f"; schedule {source['scheduled_date']}" if args.schedule and "scheduled_date" in source else ""))
             return 0
-        with upload_lock(TOKEN_DIR):
-            upload_plan(open_workout_publisher(), workouts, args.schedule, sport=sport)
+        live_upload(workouts, sport=sport, schedule=args.schedule)
         return 0
-    except (InputError, ValueError, OSError, RuntimeError, EOFError,
-            GarminConnectAuthenticationError, GarminConnectConnectionError,
-            GarminConnectTooManyRequestsError) as exc:
+    except (InputError, ValueError, OSError, RuntimeError, EOFError, ImportError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

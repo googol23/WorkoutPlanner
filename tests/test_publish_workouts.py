@@ -14,11 +14,10 @@ class PublishTests(unittest.TestCase):
             state_path = Path(folder) / "state.json"
             old = "[WP-" + "a" * 24 + "] Old workout"
             publish.write_state(state_path, {"active": {old: "10"}, "pending": None})
-            batch = {"new-run": ("running", object()), "new-ride": ("cycling", object())}
+            batch = {"new-run": {"sportType": "running"}, "new-ride": {"sportType": "cycling"}}
             api = Mock(spec_set=WorkoutPublisher)
             api.get_workouts.return_value = []
-            api.upload_running_workout.return_value = {"workoutId": 20}
-            api.upload_cycling_workout.side_effect = [OSError("network"), {"workoutId": 21}]
+            api.upload_workout.side_effect = [{"workoutId": 20}, OSError("network"), {"workoutId": 21}]
             api.get_workout_by_id.side_effect = lambda key: {
                 "workoutName": old if key == "10" else "new-run",
             }
@@ -28,7 +27,7 @@ class PublishTests(unittest.TestCase):
             self.assertEqual(read_object(state_path)["pending"]["workouts"], {"new-run": "20"})
 
             publish.publish_batch(api, state_path, "batch", batch)
-            api.upload_running_workout.assert_called_once()
+            self.assertEqual(api.upload_workout.call_count, 3)
             api.delete_workout.assert_called_once_with("10")
             self.assertEqual(read_object(state_path), {
                 "active": {"new-run": "20", "new-ride": "21"}, "pending": None,
@@ -41,8 +40,8 @@ class PublishTests(unittest.TestCase):
             publish.write_state(state_path, {"active": {old: "10"}, "pending": None})
             api = Mock(spec_set=WorkoutPublisher)
             api.get_workouts.return_value = []
-            api.upload_running_workout.return_value = {"workoutId": 20}
+            api.upload_workout.return_value = {"workoutId": 20}
             api.get_workout_by_id.return_value = {"workoutName": "Renamed workout"}
             with self.assertRaisesRegex(ValueError, "no longer matches"):
-                publish.publish_batch(api, state_path, "batch", {"new": ("running", object())})
+                publish.publish_batch(api, state_path, "batch", {"new": {"sportType": "running"}})
             api.delete_workout.assert_not_called()

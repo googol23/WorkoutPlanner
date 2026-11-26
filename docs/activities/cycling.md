@@ -29,3 +29,5 @@ All six reported cycling splits matched on heart rate, distance and timer
 duration. Average speed differed on four and maximum speed on six.
 All shared zones matched on time. Moving duration and zone lower bounds
 appeared only in the legacy export for this session.
+Across those laps, speed differences stayed below 2.37 × 10⁻⁷ m/s. Every
+extra FIT zone had zero recorded time.
