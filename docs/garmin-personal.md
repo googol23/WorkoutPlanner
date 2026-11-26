@@ -149,3 +149,8 @@ strength. To preview publication, switch back to the main environment and run
 Use the exact directory printed by the planner. The command uses the local
 publisher login, Garmin library and managed journal to report prospective
 creations, reuses and retirements without modifying the workouts or journal.
+
+The live acceptance run previewed three creations and zero retirements.
+Publishing the saved batch created the running, cycling and strength
+templates. Repeating publication of that same directory reported the batch
+as already published.

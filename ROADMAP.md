@@ -18,9 +18,10 @@ export-only for the current scope.
 
 The on-demand planner uses a shared recent Garmin history to generate and
 prioritize workout options for named profiles. The athlete verified live
-generation and a Garmin dry-run. Managed batch replacement has offline
-coverage and still needs live verification. The project runs locally and
-has no GitHub-hosted workout workflow.
+generation, preview and live publication of one running, cycling and strength
+workout in a single batch. Republishing that saved batch skipped duplicate
+creation. Live replacement passed with isolated test templates. The project
+runs locally.
 
 ## Activity context
 
@@ -35,15 +36,19 @@ activity note. Keep personal history and athlete notes outside the repository.
 ## Replacing the Garmin client
 
 1. Separate activity reads and workout publishing. The CLI now opens each
-   client through its own factory in `workoutplanner/garmin/auth.py`. Both
-   currently use the installed Garmin SDK and the existing local login.
+   client independently. The opt-in Personal API reader runs without
+   `garminconnect`. Publishing uses the legacy local login.
 2. Implement personal-key authentication for the desktop reader.
 3. Compare activity exports from both readers for the same date range and
    switch once metric coverage is verified.
 4. Workout encoding and strength exercise identifier resolution now run locally.
    Offline dry-runs for all three sports require only the Python standard library.
-5. Verify supported publishing access, including scheduling and safe deletion.
-6. Remove the SDK after a clean installation passes the complete workflow.
+5. Live publishing, scheduling by ID and managed deletion passed using the
+   existing local publisher. An official replacement requires access to
+   [Garmin's Training API](https://developer.garmin.com/gc-developer-program/enterprise/training-api/)
+   and verification of the publisher operations below.
+6. Remove the legacy dependency after a replacement publisher passes the
+   complete workflow in a clean installation.
 
 ### Operations the replacement must cover
 
@@ -65,15 +70,14 @@ Milestone 2 adds an opt-in Linux desktop login and single-activity probe.
 Use the [Personal API check](docs/garmin-personal.md) to verify access on
 your account. The normal sync and upload commands still use the SDK.
 
-The athlete verified that the opt-in Personal API sync exported one activity
-for a 14-day window. The next live check compares the compact planning fields
-for one run and one ride against the default reader.
+The athlete verified a 14-day Personal API sync, live sync in a FIT-only
+environment, and generation for all three sports from Personal API history.
+The running and cycling comparisons matched summary metrics and shared zone
+durations on the sessions tested. See the activity notes for coverage gaps.
 
-Live creation and duplicate detection have now passed for the local JSON
-encoder on running, cycling and strength templates. The current live
-transport still uses garminconnect. Scheduling by existing ID recognized the
-scheduled strength template on retry. The isolated managed batch A retained its ID on retry
-and its marked template was verified in Garmin. The isolated replacement
-verified B by ID after retry and confirmed A was absent. A FIT-only Python environment also synced an
-activity live. That same environment generated validated running, cycling and strength options
-from mixed Personal API history with the local ChatGPT login.
+Live creation and duplicate detection passed for all three sports. Scheduling
+by existing ID recognized the scheduled strength template on retry. In the
+isolated replacement test, Garmin returned the replacement by ID and
+confirmed the old template was absent. A separate three-workout planning
+batch previewed three creations and zero retirements, published successfully,
+and was recognized as already published on retry.
