@@ -43,3 +43,5 @@ in Garmin Connect still needs confirmation.
 
 The isolated managed cycling batch A was published live. Repeating the same
 batch retained its ID, and Garmin returned the matching marked template.
+The subsequent live replacement uploaded test B, retained its ID on retry,
+and confirmed that Garmin no longer returned A by its saved ID.

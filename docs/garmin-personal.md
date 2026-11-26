@@ -102,3 +102,25 @@ For lap speeds, the comparison also prints the largest absolute difference
 in m/s over aligned numeric pairs. Extra zones are counted separately by
 positive, zero and unknown duration. These diagnostics preserve exact
 comparison and leave recorded values intact.
+
+### Standalone reader environment
+
+The Personal API downloader can run in a separate Python 3.12+ environment
+with only the pinned FIT decoder. From the repository root:
+
+```bash
+(
+  set -e
+  unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_proxy ftp_proxy
+  mkdir -p -m 700 private
+  .venv/bin/python -m venv private/reader-venv
+  py=private/reader-venv/bin/python
+  "$py" -m pip --isolated install -r setup/requirements-fit-check.txt
+  "$py" -c 'from importlib.util import find_spec; assert find_spec("garminconnect") is None'
+  "$py" download_activities.py --source personal --activity-type all --limit 1 \
+    --output private/standalone-reader.json
+)
+```
+
+Use the desktop session containing your existing Garmin Personal API key.
+Live publishing and the legacy reader still use the main project environment.

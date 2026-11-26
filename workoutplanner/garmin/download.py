@@ -8,13 +8,7 @@ import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from garminconnect import (
-    GarminConnectAuthenticationError, GarminConnectConnectionError,
-    GarminConnectNotFoundError, GarminConnectTooManyRequestsError,
-)
-
 from workoutplanner.chatgpt.history import SPORT_TYPE_KEYS
-from workoutplanner.garmin.auth import open_activity_reader
 from workoutplanner.garmin.contracts import ActivityReader
 from workoutplanner.garmin.personal_reader import PersonalReader
 from workoutplanner.private_io import write_private
@@ -151,11 +145,15 @@ def optional(api: ActivityReader, method, activity_id, unavailable, **kwargs):
     if call is None:
         unavailable.append(method)
         return None
-    try:
+    if isinstance(api, PersonalReader):
         result = call(activity_id, **kwargs)
-    except GarminConnectNotFoundError:
-        unavailable.append(method)
-        return None
+    else:
+        from garminconnect import GarminConnectNotFoundError
+        try:
+            result = call(activity_id, **kwargs)
+        except GarminConnectNotFoundError:
+            unavailable.append(method)
+            return None
     if result is None or result == {} or result == []:
         unavailable.append(method)
         return None
@@ -254,8 +252,24 @@ def main(argv=None):
         parser.error("--activity-type must be a lowercase Garmin type key or all")
     if args.perceived_effort is not None and not 1 <= args.perceived_effort <= 10:
         parser.error("--perceived-effort must be from 1 to 10")
+    errors = (OSError, ValueError, RuntimeError, EOFError)
     try:
-        api = PersonalReader() if args.source == "personal" else open_activity_reader()
+        if args.source == "personal":
+            api = PersonalReader()
+        else:
+            try:
+                from garminconnect import (
+                    GarminConnectAuthenticationError, GarminConnectConnectionError,
+                    GarminConnectNotFoundError, GarminConnectTooManyRequestsError,
+                )
+            except ModuleNotFoundError as exc:
+                if exc.name != "garminconnect":
+                    raise
+                raise RuntimeError("The legacy reader requires setup/requirements-garmin.txt.") from None
+            from workoutplanner.garmin.auth import open_activity_reader
+            errors += (GarminConnectAuthenticationError, GarminConnectConnectionError,
+                       GarminConnectNotFoundError, GarminConnectTooManyRequestsError)
+            api = open_activity_reader()
         if args.activity_id is not None:
             listings = [{"activityId": args.activity_id}]
         elif args.time_range:

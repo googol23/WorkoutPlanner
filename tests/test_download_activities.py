@@ -6,7 +6,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from workoutplanner.garmin.contracts import ActivityReader
-from workoutplanner.garmin import download as exporter
+from garminconnect import GarminConnectNotFoundError
+from workoutplanner.garmin import auth, download as exporter
 
 
 def run(activity_id, kind="running", **extra):
@@ -102,7 +103,7 @@ class DownloadTests(unittest.TestCase):
 
     def test_missing_optional_data(self):
         api = self.api()
-        api.get_activity_splits.side_effect = exporter.GarminConnectNotFoundError("missing")
+        api.get_activity_splits.side_effect = GarminConnectNotFoundError("missing")
         api.get_activity_weather.return_value = None
         api.get_activity_details.return_value = {}
         result = exporter.export_activity(api, run(42))
@@ -113,7 +114,7 @@ class DownloadTests(unittest.TestCase):
 
     def test_specific_id_cli_and_validation(self):
         api = self.api()
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(auth, "open_activity_reader", return_value=api):
             output = Path(tmp) / "runs.json"
             self.assertEqual(exporter.main(["--activity-id", "42", "--output", str(output),
                                             "--perceived-effort", "8", "--fatigue", "tired"]), 0)
@@ -128,7 +129,7 @@ class DownloadTests(unittest.TestCase):
     def test_default_and_multiple_cli(self):
         api = self.api()
         api.get_activities.return_value = [run(42), run(41), run(40, "cycling")]
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(auth, "open_activity_reader", return_value=api):
             output = Path(tmp) / "runs.json"
             self.assertEqual(exporter.main(["--output", str(output)]), 0)
             self.assertEqual(len(json.loads(output.read_text())["activities"]), 1)
@@ -148,7 +149,7 @@ class DownloadTests(unittest.TestCase):
             run(45, "cycling", inProgress=True), run(46, "indoor_cycling"),
         ]
         api.get_activity.side_effect = {"42": first, "43": last}.__getitem__
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(auth, "open_activity_reader", return_value=api):
             output = Path(tmp) / "rides.json"
             args = ["--time-range", "2026-11-20..2026-11-23",
                     "--activity-type", "cycling", "--output", str(output)]
@@ -168,7 +169,7 @@ class DownloadTests(unittest.TestCase):
         api.get_activities.assert_called_with(start=20, limit=20, activitytype=None)
 
     def test_invalid_selection_is_rejected_before_login(self):
-        with patch.object(exporter, "open_activity_reader") as authenticate:
+        with patch.object(auth, "open_activity_reader") as authenticate:
             for args in (
                 ["--time-range", "2026-11-23..2026-11-20"],
                 ["--time-range", "2026-02-30..2026-03-01"],
@@ -184,7 +185,7 @@ class DownloadTests(unittest.TestCase):
     def test_empty_range_leaves_existing_output_intact(self):
         api = self.api()
         api.get_activities_by_date.return_value = [run(42, "walking")]
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(auth, "open_activity_reader", return_value=api):
             output = Path(tmp) / "existing.json"
             output.write_text("existing", encoding="utf-8")
             self.assertEqual(exporter.main(["--time-range", "2026-11-23..2026-11-23",
@@ -222,7 +223,7 @@ class DownloadTests(unittest.TestCase):
         api = self.api()
         api.get_activity.return_value = run(42, "cycling")
         api.get_activity.side_effect = None
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(auth, "open_activity_reader", return_value=api):
             output = Path(tmp) / "runs.json"
             self.assertEqual(exporter.main(["--activity-id", "42", "--output", str(output)]), 1)
             self.assertFalse(output.exists())
