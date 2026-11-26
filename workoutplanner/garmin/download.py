@@ -13,6 +13,7 @@ from garminconnect import (
     GarminConnectNotFoundError, GarminConnectTooManyRequestsError,
 )
 
+from workoutplanner.chatgpt.history import SPORT_TYPE_KEYS
 from workoutplanner.garmin.auth import open_activity_reader
 from workoutplanner.garmin.contracts import ActivityReader
 from workoutplanner.garmin.personal_reader import PersonalReader
@@ -182,7 +183,15 @@ def export_activity(api: ActivityReader, listing, feedback=None, *, activity_typ
         "power_zones": "get_activity_power_in_timezones",
         "weather": "get_activity_weather",
     }
-    data = {key: optional(api, method, str(activity_id), unavailable) for key, method in sections.items()}
+    fit_sections = {}
+    if isinstance(api, PersonalReader) and key in SPORT_TYPE_KEYS["running"] | SPORT_TYPE_KEYS["cycling"]:
+        fit_sections = api.endurance_sections(activity_id)
+    data = {}
+    for section, method in sections.items():
+        if fit_sections.get(section):
+            data[section] = fit_sections[section]
+        else:
+            data[section] = optional(api, method, str(activity_id), unavailable)
     if key == "strength_training":
         method = "get_activity_exercise_sets"
         exercise_sets = optional(api, method, str(activity_id), unavailable)

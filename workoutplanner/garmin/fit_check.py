@@ -7,7 +7,7 @@ from zipfile import BadZipFile, ZipFile
 MAX_BYTES = 32 * 1024 * 1024
 
 
-def decode_sets(archive):
+def decode_messages(archive):
     try:
         from garmin_fit_sdk import Decoder, Stream
     except ImportError:
@@ -27,7 +27,11 @@ def decode_sets(archive):
     messages, errors = decoder.read(merge_heart_rates=False)
     if errors:
         raise RuntimeError("Could not decode the complete FIT file.")
-    return messages.get("set_mesgs", [])
+    return messages
+
+
+def decode_sets(archive):
+    return decode_messages(archive).get("set_mesgs", [])
 
 
 def report(reference, recorded):

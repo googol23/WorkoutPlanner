@@ -117,13 +117,17 @@ def check_fit(activity_id, legacy_export):
     fit_check.report(groups[0], read_fit_sets(activity_id, "Bearer " + token))
 
 
-def read_fit_sets(activity_id, authorization, *, optional=False):
+def read_fit_messages(activity_id, authorization, *, optional=False):
     archive = request("GET", f"/download-service/files/activity/{activity_id}", authorization,
                       accept="application/zip, application/x-zip-compressed, application/octet-stream",
                       limit=fit_check.MAX_BYTES, optional=optional)
     if not archive and optional:
-        return []
-    return fit_check.decode_sets(archive)
+        return {}
+    return fit_check.decode_messages(archive)
+
+
+def read_fit_sets(activity_id, authorization, *, optional=False):
+    return read_fit_messages(activity_id, authorization, optional=optional).get("set_mesgs", [])
 
 
 def check(activity_id, legacy_export=None):

@@ -60,6 +60,14 @@ def compare(legacy, personal):
         for row in summaries:
             row.pop("unavailable_fields", None)
         report("other planner fields", before, after)
+        for section in ("first_splits", "heart_rate_zones", "power_zones"):
+            left, right = before.get(section, []), after.get(section, [])
+            if left != right:
+                print(f"  {section} rows: legacy {len(left)}, personal {len(right)}")
+                if left and right:
+                    for label, rows in (("legacy", left), ("personal", right)):
+                        keys = sorted({key for row in rows for key in row})
+                        print(f"    {label} row fields: {', '.join(keys)}")
 
 
 def main():

@@ -4,6 +4,7 @@ import json
 from urllib.parse import urlencode
 
 from workoutplanner.garmin import personal
+from workoutplanner.garmin.endurance import planner_sections
 
 
 class PersonalReader:
@@ -46,6 +47,10 @@ class PersonalReader:
         if not isinstance(activity, dict) or str(activity.get("activityId")) != activity_id:
             raise RuntimeError("Personal API returned an unexpected activity.")
         return activity
+
+    def endurance_sections(self, activity_id):
+        messages = personal.read_fit_messages(activity_id, self._authorization, optional=True)
+        return planner_sections(messages)
 
     def get_activity_exercise_sets(self, activity_id):
         records = personal.read_fit_sets(activity_id, self._authorization, optional=True)

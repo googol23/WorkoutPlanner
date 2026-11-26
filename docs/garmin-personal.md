@@ -72,12 +72,14 @@ differ. The optional decoder is independent of Garmin login and workout uploads.
 Pass `--source personal` to `download_activities.py` with the existing
 `--activity-id`, `--limit` or inclusive `--time-range` options. Use a
 separate output file while comparing the readers. Install the FIT decoder
-as above for strength history. The desktop CLI still uses the project environment.
+as above for strength, running and cycling history. The desktop CLI still uses the project environment.
 The Personal API supplies summaries across sports. For strength it also
 reads recorded sets from the original FIT with loads in kilograms. No
 exercise name is inferred from reps, load or a broad exercise category.
-Splits, detailed samples, zones, weather and workout steps are currently
-marked unavailable by this reader. Use the default reader for those fields.
+Running and cycling exports read recorded laps and session heart-rate and power
+zone durations from the original FIT. Availability depends on the device file.
+Multisession files are skipped for these fields. Zone boundaries, detailed
+samples, weather and workout steps still require the default reader.
 The personal export uses the existing JSON format accepted by the local planner.
 
 ### Compare running and cycling planning inputs

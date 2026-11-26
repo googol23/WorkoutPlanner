@@ -22,4 +22,6 @@ strength workout and the same calendar logic.
 
 A [local reader comparison](../garmin-personal.md#compare-running-and-cycling-planning-inputs)
 checks coverage of planning metrics for the same completed activity through
-both Garmin clients. Live sport-specific parity is pending.
+both Garmin clients. The live comparison matched 16 summary metrics for one session.
+The legacy reader also supplied splits, heart-rate zones and power zones. The new FIT
+path for those fields awaits a live comparison.
