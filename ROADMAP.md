@@ -68,3 +68,8 @@ your account. The normal sync and upload commands still use the SDK.
 The athlete verified that the opt-in Personal API sync exported one activity
 for a 14-day window. The next live check compares the compact planning fields
 for one run and one ride against the default reader.
+
+Live creation and duplicate detection have now passed for the local JSON
+encoder on running, cycling and strength templates. The current live
+transport still uses garminconnect. Next, schedule the existing strength
+test template on one date and repeat to verify calendar deduplication.

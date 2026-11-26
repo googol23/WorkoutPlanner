@@ -84,3 +84,8 @@ The [strength encoder check](../../tests/fixtures/strength-encoder-check.json)
 uses two sets of eight Goblet Squats at 10 kg with one 60-second rest between
 sets. Submit the unscheduled plan twice to verify upload and duplicate
 detection, then inspect the exercise, repetitions, load and rest in Connect.
+
+Garmin Connect created the strength template from the local JSON encoder.
+A second submission found the same ID and skipped creation. The upload
+receipt verifies creation and deduplication. The displayed exercise, reps,
+weight and rest remain to be checked in Connect.
