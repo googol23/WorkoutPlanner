@@ -77,3 +77,12 @@ isolated replacement test, Garmin returned the replacement by ID and
 confirmed the old template was absent. A separate three-workout planning
 batch previewed three creations and zero retirements, published successfully,
 and was recognized as already published on retry.
+
+## Android application
+
+The standalone native app has been started under `android/` while the Python
+local runner remains available and unchanged. The first app milestone provides
+on-device profile editing and import/export of the named profile JSON consumed
+by the desktop planner. It does not yet sync Garmin data, call a model, or upload
+workouts. The remaining mobile milestones and provider access decisions are in
+[`docs/android-app.md`](docs/android-app.md).

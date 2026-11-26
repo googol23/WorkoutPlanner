@@ -160,6 +160,7 @@ beside the workout instead of printing it.
 | `workoutplanner/planning_input.py`, `workoutplanner/workout_schema.py` | Shared JSON input and plan validation |
 | `skills/workout-planner/` | Shared skill, sport subskills, evidence and local exercise catalog |
 | `setup/`, `tests/` | Bootstrap, pinned dependency and offline tests |
+| `android/` | Native Android profile editor and mobile-app development plan |
 
 The root Python scripts are the CLI entry points. To verify locally:
 
@@ -176,3 +177,12 @@ to space them if you do more than one. The [multi-sport workflow](docs/workflow.
 shows the profile format, date-range export, and generation command.
 
 Activity downloads use Garmin's Personal API client in WorkoutPlanner. The garminconnect package is used by the workout publisher. See the [Personal API setup](docs/garmin-personal.md) for credentials and standalone reader setup.
+
+## Android app
+
+The Android app is a separate Kotlin project under [`android/`](android/). Its
+first milestone edits athlete profiles and imports/exports the same
+`athlete_profiles.json` format used by the local Python runner. It does not
+replace or modify the local pipeline. See the [Android app plan](docs/android-app.md)
+for the planned Garmin sync, workout generation and upload work, including
+their account-access prerequisites.
