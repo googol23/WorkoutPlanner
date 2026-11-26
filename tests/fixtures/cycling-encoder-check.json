@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "sport": "cycling",
+  "workouts": [{
+    "name": "WorkoutPlanner cycling encoder check 815cedc",
+    "total_duration_seconds": 600,
+    "steps": [{
+      "type": "ride",
+      "duration_seconds": 600,
+      "effort": "Synthetic power target for upload verification",
+      "power_watts": {"min": 100, "max": 140}
+    }]
+  }]
+}

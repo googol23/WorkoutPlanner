@@ -31,3 +31,7 @@ All shared zones matched on time. Moving duration and zone lower bounds
 appeared only in the legacy export for this session.
 Across those laps, speed differences stayed below 1.17 × 10⁻⁷ m/s. Every
 extra FIT zone had zero recorded time.
+
+Garmin Connect accepted the local JSON encoder's unscheduled 20-minute
+running workout. A second submission returned the original workout ID and
+skipped the upload.

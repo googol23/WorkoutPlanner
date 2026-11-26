@@ -31,3 +31,8 @@ All shared zones matched on time. Moving duration and zone lower bounds
 appeared only in the legacy export for this session.
 Across those laps, speed differences stayed below 2.37 × 10⁻⁷ m/s. Every
 extra FIT zone had zero recorded time.
+
+The [cycling encoder check](../../tests/fixtures/cycling-encoder-check.json)
+is an unscheduled ten-minute ride with a synthetic 100–140 W target. Submit
+it twice with the uploader to verify creation and duplicate detection. Open
+the saved workout in Garmin Connect to check the displayed target.
