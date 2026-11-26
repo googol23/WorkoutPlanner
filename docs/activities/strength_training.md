@@ -64,3 +64,9 @@ python build_planning_input.py --activities strength_activities.json \
 python generate_next_workout.py --planning-input strength_input.json --output next_strength.json &&
 python upload_workouts.py next_strength.json --dry-run
 ```
+
+The desktop Personal API probe retrieved a known completed strength activity
+using the athlete's key. The first comparison could not establish exercise-set
+coverage. The probe now reports counts separately for the existing export,
+activity detail and, if needed, associated workouts. Associated workout data
+alone does not establish that the recorded sets, reps and loads are equivalent.

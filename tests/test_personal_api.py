@@ -42,6 +42,27 @@ class PersonalApiTests(unittest.TestCase):
             self.assertNotIn("12000", output.getvalue())
             self.assertEqual(request.call_args.args, ("GET", "/activity-service/activity/17", "Bearer a.b.c"))
 
+    def test_missing_detail_checks_associated_workouts_without_exposing_values(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "export.json"
+            path.write_text(json.dumps({"activities": [{"activity_id": 17, "exercise_sets": {
+                "exerciseSets": [{"repetitionCount": 12}]}}]}))
+            for payload, expected in (
+                (b"", "field unavailable"),
+                (b'[{"exerciseSets":[]}]', "0 exercise-set records"),
+                (b'[{"exerciseSets":[{"repetitionCount":12}]}]', "match"),
+            ):
+                with self.subTest(payload=payload), patch.object(personal, "keyring", return_value="key"), patch.object(
+                    personal, "request", side_effect=[b"a.b.c", b'{"activityId":17}', payload]
+                ) as request, patch("sys.stdout", new_callable=io.StringIO) as output:
+                    self.assertEqual(personal.main(["check", "17", "--compare-export", str(path)]), 0)
+                    self.assertIn("Existing export: 1 exercise-set record", output.getvalue())
+                    self.assertIn("Personal API activity detail: exerciseSets field unavailable", output.getvalue())
+                    self.assertIn(expected, output.getvalue().split("Personal API associated workouts:")[1])
+                    self.assertNotIn("repetitionCount", output.getvalue())
+                    request.assert_called_with("GET", "/activity-service/activity/17/workouts",
+                                               "Bearer a.b.c", optional=True)
+
     def test_http_failure_omits_response_and_closes_connection(self):
         for status in (302, 401, 403, 429):
             with self.subTest(status=status), patch.object(personal, "HTTPSConnection") as connect:

@@ -42,3 +42,8 @@ directly. Garmin's example also documents searching activities, reading
 workouts associated with an activity, and downloading the original activity
 file. The workout lookup reads a completed activity's data. Creating a
 planned workout is a separate publishing operation.
+
+To repeat the comparison, reuse the saved reference file and run only the
+`personal check` command. It reports missing or empty exercise-set lists by
+source, and consults the associated-workouts endpoint when the activity detail
+has no sets. A zero count describes the returned data, not how many sets you did.

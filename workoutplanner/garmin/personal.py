@@ -29,11 +29,13 @@ def keyring(command, key=None):
     return result.stdout.strip()
 
 
-def request(method, path, authorization):
+def request(method, path, authorization, *, optional=False):
     conn = HTTPSConnection(HOST, timeout=30)
     try:
         conn.request(method, path, headers={"Authorization": authorization, "Accept": "*/*"})
         response = conn.getresponse()
+        if optional and response.status in (204, 404):
+            return b""
         if response.status in (401, 403):
             raise RuntimeError("Garmin denied access. Check key expiry and permissions, then run login.")
         if response.status != 200:
@@ -72,6 +74,27 @@ def login():
     print("Garmin accepted the key. Saved it in your desktop keyring.")
 
 
+def exercise_set_groups(value):
+    """Find explicitly named exerciseSets lists in a JSON object or array."""
+    if isinstance(value, dict):
+        for key, child in value.items():
+            if key == "exerciseSets" and isinstance(child, list):
+                yield child
+            else:
+                yield from exercise_set_groups(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from exercise_set_groups(child)
+
+
+def describe_sets(source, groups):
+    if not groups:
+        print(f"{source}: exerciseSets field unavailable.")
+    else:
+        count = sum(map(len, groups))
+        print(f"{source}: {count} exercise-set records across {len(groups)} list(s).")
+
+
 def check(activity_id, legacy_export=None):
     token = exchange(keyring("lookup"))
     activity = json.loads(request("GET", f"/activity-service/activity/{activity_id}", "Bearer " + token))
@@ -84,14 +107,21 @@ def check(activity_id, legacy_export=None):
     previous = next((row for row in records if str(row["activity_id"]) == str(activity_id)), None)
     if previous is None:
         raise RuntimeError("The selected activity is missing from the comparison export.")
-    legacy = (previous.get("exercise_sets") or {}).get("exerciseSets")
-    current = activity.get("exerciseSets")
-    if not legacy or not current:
-        print("Set comparison unavailable: one or both responses lack exercise sets.")
-    elif current == legacy:
+    legacy = list(exercise_set_groups(previous.get("exercise_sets")))
+    current = list(exercise_set_groups(activity))
+    describe_sets("Existing export", legacy)
+    describe_sets("Personal API activity detail", current)
+    if not any(current):
+        path = f"/activity-service/activity/{activity_id}/workouts"
+        raw = request("GET", path, "Bearer " + token, optional=True)
+        current = list(exercise_set_groups(json.loads(raw))) if raw else []
+        describe_sets("Personal API associated workouts", current)
+    if not any(legacy) or not any(current):
+        print("Recorded set coverage could not be verified.")
+    elif len(legacy) == len(current) == 1 and current == legacy:
         print("The returned exercise sets match the previous export exactly.")
     else:
-        print("Exercise-set records differ. Metric parity requires further verification.")
+        print("Exercise-set records differ or span multiple lists. Verify metric coverage.")
 
 
 def main(argv=None):
