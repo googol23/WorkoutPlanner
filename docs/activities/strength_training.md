@@ -89,3 +89,9 @@ Garmin Connect created the strength template from the local JSON encoder.
 A second submission found the same ID and skipped creation. The upload
 receipt verifies creation and deduplication. The displayed exercise, reps,
 weight and rest remain to be checked in Connect.
+
+The live calendar check created a second same-name template on its first
+call. The retry recognized that second ID and its calendar entry. The
+earlier ID's availability at scheduling time is unknown. Use the
+[existing-ID scheduling command](../workflow.md#scheduling-a-known-garmin-template)
+when reusing a known template.

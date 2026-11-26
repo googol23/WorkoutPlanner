@@ -42,6 +42,29 @@ class UploadTests(unittest.TestCase):
         self.assertAlmostEqual(pace["targetValueTwo"], 1000 / 300)
         self.assertEqual(steps[1]["workoutSteps"][1]["targetValueOne"], 110)
 
+    def test_schedule_existing_uses_verified_id_without_upload_or_list(self):
+        api = Mock(spec_set=WorkoutPublisher)
+        api.get_workout_by_id.return_value = {"workoutId": 42, "workoutName": "Intervals",
+                                               "sportType": {"sportTypeKey": "running"}}
+        api.get_scheduled_workouts.side_effect = [
+            {"calendarItems": []}, {"calendarItems": [{"itemType": "workout", "workoutId": 42,
+                                                        "date": "2027-04-02"}]}]
+        for _ in range(2):
+            module.schedule_existing(api, self.plan[0], "running", "42", "2027-04-02")
+        api.schedule_workout.assert_called_once_with("42", "2027-04-02")
+        api.get_workouts.assert_not_called()
+        api.upload_workout.assert_not_called()
+
+    def test_schedule_existing_refuses_wrong_workout_before_calendar_write(self):
+        api = Mock(spec_set=WorkoutPublisher)
+        api.get_workout_by_id.return_value = {"workoutId": 42, "workoutName": "Intervals",
+                                               "sportType": {"sportTypeKey": "cycling"}}
+        with self.assertRaises(module.InputError):
+            module.schedule_existing(api, self.plan[0], "running", "42", "2027-04-02")
+        api.get_scheduled_workouts.assert_not_called()
+        api.schedule_workout.assert_not_called()
+        api.upload_workout.assert_not_called()
+
     def test_bad_input_rejected(self):
         for bad_step in (
             {"type": "repeat", "count": 0, "steps": [{"type": "interval", "duration_seconds": 30}]},

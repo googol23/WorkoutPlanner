@@ -87,21 +87,39 @@ def upload_plan(api: WorkoutPublisher, workouts, schedule=False, *, sport="runni
             print(f"Uploaded: {name} (ID {workout_id})")
             library[name] = [{"workoutId": workout_id, "workoutName": name}]
         if schedule and "scheduled_date" in source:
-            key = (str(workout_id), source["scheduled_date"])
-            if key in calendar:
-                print(f"Already scheduled: {name} on {source['scheduled_date']}")
-            else:
-                try:
-                    api.schedule_workout(workout_id, source["scheduled_date"])
-                except (GarminConnectConnectionError, OSError) as exc:
-                    raise RuntimeError("Scheduling outcome is uncertain. Check the Garmin calendar before retrying.") from exc
-                calendar.add(key)
-                print(f"Scheduled: {name} on {source['scheduled_date']}")
+            schedule_once(api, name, workout_id, source["scheduled_date"], calendar)
 
 
-def live_upload(workouts=None, *, sport="running", schedule=False):
+def schedule_once(api, name, workout_id, day, calendar):
+    from garminconnect import GarminConnectConnectionError
+
+    key = (str(workout_id), day)
+    if key in calendar:
+        print(f"Already scheduled: {name} (ID {workout_id}) on {day}")
+        return
+    try:
+        api.schedule_workout(workout_id, day)
+    except (GarminConnectConnectionError, OSError) as exc:
+        raise RuntimeError("Scheduling outcome is uncertain. Check the Garmin calendar before retrying.") from exc
+    calendar.add(key)
+    print(f"Scheduled: {name} (ID {workout_id}) on {day}")
+
+
+def schedule_existing(api, source, sport, workout_id, day):
+    current = api.get_workout_by_id(workout_id)
+    if not isinstance(current, dict) or str(current.get("workoutId")) != workout_id:
+        raise InputError("Garmin did not return the requested workout ID.")
+    kind = current.get("sportType")
+    if (current.get("workoutName") != source["name"] or not isinstance(kind, dict)
+            or kind.get("sportTypeKey") != sport):
+        raise InputError("The selected Garmin workout name or sport differs from the plan.")
+    schedule_once(api, source["name"], workout_id, day, existing_schedule(api, [day]))
+
+
+def live_upload(workouts=None, *, sport="running", schedule=False, existing=None):
     from garminconnect import (
-        GarminConnectAuthenticationError, GarminConnectConnectionError, GarminConnectTooManyRequestsError,
+        GarminConnectAuthenticationError, GarminConnectConnectionError, GarminConnectNotFoundError,
+        GarminConnectTooManyRequestsError,
     )
     from workoutplanner.garmin.auth import TOKEN_DIR, open_workout_publisher
 
@@ -110,8 +128,13 @@ def live_upload(workouts=None, *, sport="running", schedule=False):
             open_workout_publisher()
         else:
             with upload_lock(TOKEN_DIR):
-                upload_plan(open_workout_publisher(), workouts, schedule, sport=sport)
-    except (GarminConnectAuthenticationError, GarminConnectConnectionError, GarminConnectTooManyRequestsError) as exc:
+                api = open_workout_publisher()
+                if existing:
+                    schedule_existing(api, workouts[0], sport, *existing)
+                else:
+                    upload_plan(api, workouts, schedule, sport=sport)
+    except (GarminConnectAuthenticationError, GarminConnectConnectionError, GarminConnectNotFoundError,
+            GarminConnectTooManyRequestsError) as exc:
         raise RuntimeError(str(exc)) from exc
 
 
@@ -120,9 +143,12 @@ def main(argv=None):
     parser.add_argument("plan", nargs="?", help="JSON plan file")
     parser.add_argument("--login", action="store_true", help="authenticate and store tokens")
     parser.add_argument("--dry-run", action="store_true", help="validate and preview without network or login")
-    parser.add_argument("--schedule", action="store_true", help="schedule workouts that specify dates")
+    scheduling = parser.add_mutually_exclusive_group()
+    scheduling.add_argument("--schedule-existing", nargs=2, metavar=("ID", "DATE"),
+                            help="schedule one existing Garmin workout by ID and ISO date")
+    scheduling.add_argument("--schedule", action="store_true", help="schedule workouts that specify dates")
     args = parser.parse_args(argv)
-    if args.login and (args.plan or args.dry_run or args.schedule):
+    if args.login and (args.plan or args.dry_run or args.schedule or args.schedule_existing):
         parser.error("--login must be used alone")
     if not args.login and not args.plan:
         parser.error("a JSON plan file or --login is required")
@@ -133,6 +159,13 @@ def main(argv=None):
         plan = read_plan(args.plan)
         workouts = validate_plan(plan)
         sport = plan["sport"]
+        if args.schedule_existing:
+            workout_id, day = args.schedule_existing
+            if len(workouts) != 1 or not workout_id.isascii() or not workout_id.isdecimal() or int(workout_id) < 1:
+                raise InputError("--schedule-existing requires a single workout and a positive numeric Garmin ID")
+            if date.fromisoformat(day).isoformat() != day:
+                raise InputError("Use YYYY-MM-DD for the calendar date")
+            workouts = [{**workouts[0], "scheduled_date": day}]
         if args.schedule and not any("scheduled_date" in workout for workout in workouts):
             raise InputError("--schedule requires at least one workout with scheduled_date (YYYY-MM-DD)")
         for source in workouts:
@@ -141,9 +174,9 @@ def main(argv=None):
             for source in workouts:
                 seconds = (source["estimated_duration_seconds"] if sport == "strength_training"
                            else duration(source["steps"]))
-                print(f"DRY RUN: {source['name']} ({seconds} seconds)" + (f"; schedule {source['scheduled_date']}" if args.schedule and "scheduled_date" in source else ""))
+                print(f"DRY RUN: {source['name']} ({seconds} seconds)" + (f"; schedule {source['scheduled_date']}" if (args.schedule or args.schedule_existing) and "scheduled_date" in source else ""))
             return 0
-        live_upload(workouts, sport=sport, schedule=args.schedule)
+        live_upload(workouts, sport=sport, schedule=args.schedule, existing=args.schedule_existing)
         return 0
     except (InputError, ValueError, OSError, RuntimeError, EOFError, ImportError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

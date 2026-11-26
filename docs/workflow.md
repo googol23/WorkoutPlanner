@@ -198,3 +198,13 @@ with Python site packages disabled. WorkoutPlanner encodes running, cycling
 and strength payloads locally. Its strength identifier mapping was checked
 against all 1,527 entries in the pinned 0.3.20 catalog. Live publishing still
 uses the Garmin client's JSON upload method and your existing local login.
+
+### Scheduling a known Garmin template
+
+When you have the workout ID from a successful upload, use
+`python upload_workouts.py PLAN.json --schedule-existing ID YYYY-MM-DD`.
+This mode checks the ID, name and sport, then schedules that specific template
+once on the requested date. It never creates a template. It supports a
+single-workout plan. The explicit date takes precedence over a plan date.
+The original `--schedule` command can create a workout if the name lookup
+finds no match. Use that mode when creation is intended.
