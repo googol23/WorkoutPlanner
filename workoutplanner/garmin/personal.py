@@ -4,6 +4,7 @@ import argparse
 from getpass import GetPassWarning, getpass
 from http.client import HTTPException, HTTPSConnection
 import json
+from workoutplanner.garmin import fit_check
 from pathlib import Path
 import re
 import subprocess
@@ -29,10 +30,10 @@ def keyring(command, key=None):
     return result.stdout.strip()
 
 
-def request(method, path, authorization, *, optional=False):
+def request(method, path, authorization, *, optional=False, accept="*/*", limit=None):
     conn = HTTPSConnection(HOST, timeout=30)
     try:
-        conn.request(method, path, headers={"Authorization": authorization, "Accept": "*/*"})
+        conn.request(method, path, headers={"Authorization": authorization, "Accept": accept})
         response = conn.getresponse()
         if optional and response.status in (204, 404):
             return b""
@@ -40,7 +41,12 @@ def request(method, path, authorization, *, optional=False):
             raise RuntimeError("Garmin denied access. Check key expiry and permissions, then run login.")
         if response.status != 200:
             raise RuntimeError(f"Garmin returned HTTP {response.status}.")
-        return response.read()
+        if limit is None:
+            return response.read()
+        payload = response.read(limit + 1)
+        if len(payload) > limit:
+            raise RuntimeError("Garmin download exceeds the local comparison size limit.")
+        return payload
     except (OSError, HTTPException):
         raise RuntimeError("Could not complete the HTTPS request to Garmin.") from None
     finally:
@@ -95,6 +101,25 @@ def describe_sets(source, groups):
         print(f"{source}: {count} exercise-set records across {len(groups)} list(s).")
 
 
+def reference_sets(activity_id, legacy_export):
+    records = json.loads(legacy_export.read_text())["activities"]
+    previous = next((row for row in records if str(row["activity_id"]) == str(activity_id)), None)
+    if previous is None:
+        raise RuntimeError("The selected activity is missing from the comparison export.")
+    return list(exercise_set_groups(previous.get("exercise_sets")))
+
+
+def check_fit(activity_id, legacy_export):
+    groups = reference_sets(activity_id, legacy_export)
+    if len(groups) != 1:
+        raise RuntimeError("Expected one exercise-set list in the existing export.")
+    token = exchange(keyring("lookup"))
+    archive = request("GET", f"/download-service/files/activity/{activity_id}", "Bearer " + token,
+                      accept="application/zip, application/x-zip-compressed, application/octet-stream",
+                      limit=fit_check.MAX_BYTES)
+    fit_check.report(groups[0], fit_check.decode_sets(archive))
+
+
 def check(activity_id, legacy_export=None):
     token = exchange(keyring("lookup"))
     activity = json.loads(request("GET", f"/activity-service/activity/{activity_id}", "Bearer " + token))
@@ -103,11 +128,7 @@ def check(activity_id, legacy_export=None):
     print("Personal API returned the requested activity.")
     if legacy_export is None:
         return
-    records = json.loads(legacy_export.read_text())["activities"]
-    previous = next((row for row in records if str(row["activity_id"]) == str(activity_id)), None)
-    if previous is None:
-        raise RuntimeError("The selected activity is missing from the comparison export.")
-    legacy = list(exercise_set_groups(previous.get("exercise_sets")))
+    legacy = reference_sets(activity_id, legacy_export)
     current = list(exercise_set_groups(activity))
     describe_sets("Existing export", legacy)
     describe_sets("Personal API activity detail", current)
@@ -131,12 +152,17 @@ def main(argv=None):
     probe = commands.add_parser("check", help="read a known activity by Garmin ID")
     probe.add_argument("activity_id", type=int)
     probe.add_argument("--compare-export", type=Path, help="compare exercise sets with a local activity export")
+    fit = commands.add_parser("check-fit", help="compare the original FIT with a saved strength export")
+    fit.add_argument("activity_id", type=int)
+    fit.add_argument("--compare-export", required=True, type=Path)
     args = parser.parse_args(argv)
-    if args.command == "check" and args.activity_id < 1:
+    if args.command != "login" and args.activity_id < 1:
         parser.error("activity_id must be positive")
     try:
         if args.command == "login":
             login()
+        elif args.command == "check-fit":
+            check_fit(args.activity_id, args.compare_export)
         else:
             check(args.activity_id, args.compare_export)
         return 0

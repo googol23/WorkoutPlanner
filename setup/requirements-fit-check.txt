@@ -1,0 +1,3 @@
+--only-binary :all:
+--require-hashes
+garmin-fit-sdk==21.222.0 --hash=sha256:759ee182ce966b397acc7043b8c472865f236c98b4d73640a000530f506c61b6

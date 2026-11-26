@@ -70,3 +70,7 @@ using the athlete's key. The first comparison could not establish exercise-set
 coverage. The probe now reports counts separately for the existing export,
 activity detail and, if needed, associated workouts. Associated workout data
 alone does not establish that the recorded sets, reps and loads are equivalent.
+
+A live comparison found 36 exercise-set records in the existing export and no
+exerciseSets list in either Personal API JSON response for that session.
+Original FIT coverage is pending the [local FIT comparison](../garmin-personal.md).

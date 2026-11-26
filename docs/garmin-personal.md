@@ -47,3 +47,22 @@ To repeat the comparison, reuse the saved reference file and run only the
 `personal check` command. It reports missing or empty exercise-set lists by
 source, and consults the associated-workouts endpoint when the activity detail
 has no sets. A zero count describes the returned data, not how many sets you did.
+
+### Compare the original strength activity
+
+Use the same activity ID and saved reference export. The optional diagnostic
+uses Garmin's FIT decoder locally and reads one FIT member from the original
+ZIP in memory. Run from the project root with your numeric ID in place of ID.
+
+```bash
+(
+  unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_proxy ftp_proxy
+  .venv/bin/python -m pip install -r setup/requirements-fit-check.txt &&
+  .venv/bin/python -m workoutplanner.garmin.personal check-fit ID --compare-export private/strength-reference.json
+)
+```
+
+The report separates rest and active records and compares repetitions in
+returned order. It only compares loads when both sides have explicit,
+comparable units. Device recordings and subsequent Garmin Connect edits can
+differ. The optional decoder is independent of Garmin login and workout uploads.
