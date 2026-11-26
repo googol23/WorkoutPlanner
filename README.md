@@ -169,3 +169,5 @@ Keep named profiles for running, cycling, and strength and build all next-workou
 options in one local command. The planner ranks the options and explains how
 to space them if you do more than one. The [multi-sport workflow](docs/workflow.md#local-multi-sport-planning)
 shows the profile format, date-range export, and generation command.
+
+For the new read-only desktop client, see [Personal API key setup and activity check](docs/garmin-personal.md).

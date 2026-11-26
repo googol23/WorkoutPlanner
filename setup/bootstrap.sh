@@ -36,7 +36,7 @@ if "$install_os"; then
     fi
     apt_options=(-o Acquire::http::Proxy=DIRECT -o Acquire::https::Proxy=DIRECT)
     "${apt[@]}" "${apt_options[@]}" update
-    "${apt[@]}" "${apt_options[@]}" install -y git curl ca-certificates python3 python3-venv
+    "${apt[@]}" "${apt_options[@]}" install -y libsecret-tools git curl ca-certificates python3 python3-venv
 fi
 
 if ! "$python_bin" -c 'import sys; raise SystemExit(sys.version_info < (3, 12))'; then

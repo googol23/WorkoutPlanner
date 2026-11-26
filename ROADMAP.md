@@ -59,3 +59,7 @@ capture running splits, cycling power and strength loads for reuse by a
 future Android client. The Python method names in
 [the desktop interfaces](workoutplanner/garmin/contracts.py) describe the
 current adapter. Android can implement the same data behavior in Kotlin.
+
+Milestone 2 adds an opt-in Linux desktop login and single-activity probe.
+Use the [Personal API check](docs/garmin-personal.md) to verify access on
+your account. The normal sync and upload commands still use the SDK.
