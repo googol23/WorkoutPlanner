@@ -1,5 +1,6 @@
 """Compare planner inputs from two Garmin readers for a recorded run and ride."""
 
+from math import isfinite
 import sys
 
 from garminconnect import (
@@ -47,6 +48,13 @@ def report(label, reference, personal):
 def compare_rows(section, left, right):
     print(f"  {section} rows: legacy {len(left)}, personal {len(right)}")
     if section == "first_splits":
+        for field in ("averageSpeed", "maxSpeed"):
+            differences = [abs(old[field] - new[field]) for old, new in zip(left, right)
+                           if all(type(row.get(field)) in (int, float) and isfinite(row[field])
+                                  for row in (old, new))]
+            if differences:
+                print(f"    {field} largest absolute difference: {max(differences):.6g} m/s "
+                      f"across {len(differences)} comparable laps")
         pairs = zip(left, right)
     else:
         # Garmin Connect and the FIT file can return different zone orders.
@@ -58,10 +66,15 @@ def compare_rows(section, left, right):
                 return
             maps.append(keyed)
         legacy, personal = maps
-        for label, extra in (("legacy", legacy.keys() - personal.keys()),
-                             ("personal", personal.keys() - legacy.keys())):
+        for label, source, other in (("legacy", legacy, personal), ("personal", personal, legacy)):
+            extra = source.keys() - other.keys()
             if extra:
                 print(f"    {label}-only zone numbers: {', '.join(sorted(map(str, extra)))}")
+                times = [source[key].get("secsInZone", source[key].get("secondsInZone")) for key in extra]
+                valid = [t for t in times if type(t) in (int, float) and isfinite(t) and t >= 0]
+                positive = sum(t > 0 for t in valid)
+                print(f"    {label}-only zones with positive time: {positive}; "
+                      f"zero: {len(valid) - positive}; unknown: {len(times) - len(valid)}")
         pairs = ((legacy[key], personal[key]) for key in legacy.keys() & personal.keys())
 
     compared = {}

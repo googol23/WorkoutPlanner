@@ -25,4 +25,7 @@ checks coverage of planning metrics for the same completed activity through
 both Garmin clients. The live comparison matched 12 summary metrics for one session.
 Both readers returned six planner split rows. The FIT path returned six
 heart-rate zone rows, versus five from the legacy reader.
-Moving time and legacy zone lower bounds still need verification.
+All six reported cycling splits matched on heart rate, distance and timer
+duration. Average speed differed on four and maximum speed on six.
+All shared zones matched on time. Moving duration and zone lower bounds
+appeared only in the legacy export for this session.

@@ -97,3 +97,8 @@ Each field shows counts of exact matches, differing values and one-sided
 fields among aligned rows. Extra zone numbers are listed separately. Running
 lap cadence uses steps per minute, including fractional strides when recorded.
 Moving duration requires an explicit FIT moving-time field.
+
+For lap speeds, the comparison also prints the largest absolute difference
+in m/s over aligned numeric pairs. Extra zones are counted separately by
+positive, zero and unknown duration. These diagnostics preserve exact
+comparison and leave recorded values intact.

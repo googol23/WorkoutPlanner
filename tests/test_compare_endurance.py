@@ -44,3 +44,17 @@ class EnduranceComparisonTests(unittest.TestCase):
         self.assertIn("secsInZone: 1 / 1 / 0 / 0", out.getvalue())
         self.assertIn("zoneLowBoundary: 0 / 0 / 1 / 0", out.getvalue())
         self.assertNotIn("133", out.getvalue())
+
+    def test_speed_magnitude_uses_only_comparable_laps(self):
+        out = StringIO()
+        with redirect_stdout(out):
+            probe.compare_rows("first_splits", [{"averageSpeed": 4}, {"averageSpeed": 3}, {}],
+                               [{"averageSpeed": 4.0002}, {"averageSpeed": 3}, {"averageSpeed": 9}])
+        self.assertIn("largest absolute difference: 0.0002 m/s across 2 comparable laps", out.getvalue())
+
+    def test_extra_zones_distinguish_missing_from_zero(self):
+        out = StringIO()
+        with redirect_stdout(out):
+            probe.compare_rows("power_zones", [], [{"zoneNumber": 5, "secsInZone": 0},
+                {"zoneNumber": 6, "secsInZone": 1}, {"zoneNumber": 7}])
+        self.assertIn("positive time: 1; zero: 1; unknown: 1", out.getvalue())
