@@ -79,3 +79,13 @@ exercise name is inferred from reps, load or a broad exercise category.
 Splits, detailed samples, zones, weather and workout steps are currently
 marked unavailable by this reader. Use the default reader for those fields.
 The personal export uses the existing JSON format accepted by the local planner.
+
+### Compare running and cycling planning inputs
+
+Run `.venv/bin/python -m workoutplanner.garmin.compare_endurance` with both
+local Garmin logins configured. The check finds a recent completed run and
+ride using the Personal API sport searches, including supported subtypes,
+without the planner's 14-day cutoff. It reads each selected activity ID with
+both clients and compares the compact fields that reach the planner. It
+prints counts and field names. Equality applies to the selected sessions
+and the planner's bounded summaries, including its first splits and zones.

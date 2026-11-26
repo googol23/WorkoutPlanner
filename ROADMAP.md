@@ -63,3 +63,7 @@ current adapter. Android can implement the same data behavior in Kotlin.
 Milestone 2 adds an opt-in Linux desktop login and single-activity probe.
 Use the [Personal API check](docs/garmin-personal.md) to verify access on
 your account. The normal sync and upload commands still use the SDK.
+
+The athlete verified that the opt-in Personal API sync exported one activity
+for a 14-day window. The next live check compares the compact planning fields
+for one run and one ride against the default reader.

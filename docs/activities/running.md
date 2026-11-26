@@ -19,3 +19,7 @@ effort cues when the history cannot support a numeric target.
 The athlete confirmed live generation, a run-walk dry-run, upload, and
 duplicate upload detection. The live scheduling acceptance check used a
 strength workout and the same calendar logic.
+
+A [local reader comparison](../garmin-personal.md#compare-running-and-cycling-planning-inputs)
+checks coverage of planning metrics for the same completed activity through
+both Garmin clients. Live sport-specific parity is pending.

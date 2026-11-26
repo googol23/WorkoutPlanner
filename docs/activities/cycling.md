@@ -19,3 +19,7 @@ optional power ranges. Calendar placement uses the shared uploader.
 The athlete confirmed a generated endurance ride passed preview and a live
 retry found the existing ride and skipped upload. The live scheduling
 acceptance check used a strength workout.
+
+A [local reader comparison](../garmin-personal.md#compare-running-and-cycling-planning-inputs)
+checks coverage of planning metrics for the same completed activity through
+both Garmin clients. Live sport-specific parity is pending.
