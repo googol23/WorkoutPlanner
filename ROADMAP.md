@@ -72,5 +72,5 @@ for one run and one ride against the default reader.
 Live creation and duplicate detection have now passed for the local JSON
 encoder on running, cycling and strength templates. The current live
 transport still uses garminconnect. Scheduling by existing ID recognized the
-scheduled strength template on retry. The next live check publishes and
-retries an isolated managed batch before testing replacement.
+scheduled strength template on retry. The isolated managed batch A retained its ID on retry
+and its marked template was verified in Garmin. Live replacement is next.

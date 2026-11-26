@@ -218,3 +218,9 @@ the same saved batch and verifies its ID and name with Garmin. The check
 uses the normal publisher lock and a separate local journal in the Garmin
 token directory named `workoutplanner-acceptance.json`. Keep that journal
 for the replacement test.
+
+After stage A succeeds, pass `--replace-a` to the same check. This live
+operation uploads unscheduled cycling test B and retires test A by its
+verified ID and marker. It retries B, reads B back, and checks that Garmin
+reports A missing. Run from the same account and local test journal. A
+replacement receipt retains the old test ID for repeat verification.

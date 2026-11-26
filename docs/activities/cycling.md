@@ -40,3 +40,6 @@ the saved workout in Garmin Connect to check the displayed target.
 Garmin Connect accepted the local encoder's cycling test. A second submission
 returned the same workout ID and skipped creation. Display of the power target
 in Garmin Connect still needs confirmation.
+
+The isolated managed cycling batch A was published live. Repeating the same
+batch retained its ID, and Garmin returned the matching marked template.
