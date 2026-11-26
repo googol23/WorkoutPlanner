@@ -35,3 +35,10 @@ class EnduranceFitTests(unittest.TestCase):
         messages = {"time_in_zone_mesgs": [{"reference_mesg": "lap", "time_in_hr_zone": [0, 42]}]}
         self.assertFalse(endurance.planner_sections(messages)["heart_rate_zones"])
         self.assertFalse(endurance.planner_sections({**messages, "session_mesgs": [{}, {}]}))
+
+    def test_running_lap_cadence_includes_both_steps_and_fraction(self):
+        messages = {"session_mesgs": [{"sport": "running"}], "lap_mesgs": [
+            {"avg_running_cadence": 81, "avg_fractional_cadence": 0.5},
+            {"avg_cadence": 0}, {"sport": "cycling", "avg_cadence": 92, "total_distance": 100}]}
+        laps = endurance.planner_sections(messages)["splits"]["lapDTOs"]
+        self.assertEqual(laps, [{"averageRunCadence": 163}, {"averageRunCadence": 0}, {"distance": 100}])

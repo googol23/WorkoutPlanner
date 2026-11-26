@@ -91,3 +91,9 @@ without the planner's 14-day cutoff. It reads each selected activity ID with
 both clients and compares the compact fields that reach the planner. It
 prints counts and field names. Equality applies to the selected sessions
 and the planner's bounded summaries, including its first splits and zones.
+
+For differing sections the check aligns splits by order and zones by number.
+Each field shows counts of exact matches, differing values and one-sided
+fields among aligned rows. Extra zone numbers are listed separately. Running
+lap cadence uses steps per minute, including fractional strides when recorded.
+Moving duration requires an explicit FIT moving-time field.

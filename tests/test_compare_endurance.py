@@ -31,3 +31,16 @@ class EnduranceComparisonTests(unittest.TestCase):
         reader.get_activities.return_value = [{"activityId": 1, "inProgress": True}] * 20
         with self.assertRaisesRegex(RuntimeError, "repeated"):
             probe.latest(reader, "cycling")
+
+    def test_aligns_by_zone_number_and_counts_missing_separately(self):
+        out = StringIO()
+        with redirect_stdout(out):
+            probe.compare_rows("heart_rate_zones",
+                [{"zoneNumber": 2, "secsInZone": 110, "zoneLowBoundary": 133},
+                 {"zoneNumber": 1, "secsInZone": 0}],
+                [{"zoneNumber": 1, "secsInZone": 0}, {"zoneNumber": 2, "secsInZone": 109.9},
+                 {"zoneNumber": 3, "secsInZone": 5}])
+        self.assertIn("personal-only zone numbers: 3", out.getvalue())
+        self.assertIn("secsInZone: 1 / 1 / 0 / 0", out.getvalue())
+        self.assertIn("zoneLowBoundary: 0 / 0 / 1 / 0", out.getvalue())
+        self.assertNotIn("133", out.getvalue())

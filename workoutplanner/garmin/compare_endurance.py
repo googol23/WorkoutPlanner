@@ -44,6 +44,44 @@ def report(label, reference, personal):
             print(f"    {status}: {', '.join(sorted(keys))}")
 
 
+def compare_rows(section, left, right):
+    print(f"  {section} rows: legacy {len(left)}, personal {len(right)}")
+    if section == "first_splits":
+        pairs = zip(left, right)
+    else:
+        # Garmin Connect and the FIT file can return different zone orders.
+        maps = []
+        for rows in (left, right):
+            keyed = {row.get("zoneNumber", row.get("zone")): row for row in rows}
+            if None in keyed or len(keyed) != len(rows):
+                print("    Cannot align zones: missing or duplicate zone numbers.")
+                return
+            maps.append(keyed)
+        legacy, personal = maps
+        for label, extra in (("legacy", legacy.keys() - personal.keys()),
+                             ("personal", personal.keys() - legacy.keys())):
+            if extra:
+                print(f"    {label}-only zone numbers: {', '.join(sorted(map(str, extra)))}")
+        pairs = ((legacy[key], personal[key]) for key in legacy.keys() & personal.keys())
+
+    compared = {}
+    for old, new in pairs:
+        for key in old.keys() | new.keys():
+            counts = compared.setdefault(key, [0, 0, 0, 0])
+            if key not in new:
+                counts[2] += 1
+            elif key not in old:
+                counts[3] += 1
+            elif old[key] == new[key]:
+                counts[0] += 1
+            else:
+                counts[1] += 1
+    if compared:
+        print("    field: exact / different / legacy only / personal only (aligned rows)")
+        for key, counts in sorted(compared.items()):
+            print(f"    {key}: " + " / ".join(map(str, counts)))
+
+
 def compare(legacy, personal):
     for sport in ("running", "cycling"):
         listing = latest(personal, sport)
@@ -63,11 +101,7 @@ def compare(legacy, personal):
         for section in ("first_splits", "heart_rate_zones", "power_zones"):
             left, right = before.get(section, []), after.get(section, [])
             if left != right:
-                print(f"  {section} rows: legacy {len(left)}, personal {len(right)}")
-                if left and right:
-                    for label, rows in (("legacy", left), ("personal", right)):
-                        keys = sorted({key for row in rows for key in row})
-                        print(f"    {label} row fields: {', '.join(keys)}")
+                compare_rows(section, left, right)
 
 
 def main():

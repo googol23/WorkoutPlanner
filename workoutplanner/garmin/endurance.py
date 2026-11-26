@@ -31,9 +31,17 @@ def recorded_zones(messages, field):
 def planner_sections(messages):
     if len(messages.get("session_mesgs", [])) > 1:
         return {}
+    sessions = messages.get("session_mesgs", [])
+    session_sport = sessions[0].get("sport") if sessions else None
     laps = []
     for lap in messages.get("lap_mesgs", []):
         fields = {out: lap[key] for key, out in LAP_FIELDS.items() if lap.get(key) is not None}
+        sport = lap.get("sport", session_sport)
+        cadence = lap.get("avg_running_cadence")
+        if cadence is None and sport == "running":
+            cadence = lap.get("avg_cadence")
+        if cadence is not None and sport in (None, "running"):
+            fields["averageRunCadence"] = 2 * (cadence + (lap.get("avg_fractional_cadence") or 0))
         if fields:
             laps.append(fields)
     return {"splits": {"lapDTOs": laps} if laps else None,

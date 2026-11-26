@@ -23,5 +23,6 @@ strength workout and the same calendar logic.
 A [local reader comparison](../garmin-personal.md#compare-running-and-cycling-planning-inputs)
 checks coverage of planning metrics for the same completed activity through
 both Garmin clients. The live comparison matched 16 summary metrics for one session.
-The legacy reader also supplied splits, heart-rate zones and power zones. The new FIT
-path for those fields awaits a live comparison.
+Both readers returned three planner split rows. The FIT path returned six
+heart-rate and seven power zone rows, versus five each from the legacy reader.
+Moving time and legacy zone lower bounds still need verification.
