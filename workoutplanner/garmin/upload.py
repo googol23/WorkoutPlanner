@@ -27,7 +27,8 @@ from garminconnect.workout import (
     create_warmup_step,
 )
 
-from workoutplanner.garmin.auth import TOKEN_DIR, authenticate
+from workoutplanner.garmin.auth import TOKEN_DIR, open_workout_publisher
+from workoutplanner.garmin.contracts import WorkoutPublisher, upload_for_sport
 from workoutplanner.garmin.strength import build_strength_workout
 from workoutplanner.workout_schema import InputError, duration, read_plan, validate_plan
 SPORT = {"sportTypeId": 1, "sportTypeKey": "running"}
@@ -87,7 +88,7 @@ def build_workout(source, *, sport="running"):
     )
 
 
-def existing_workouts(api):
+def existing_workouts(api: WorkoutPublisher):
     found = {}
     start = 0
     while True:
@@ -103,7 +104,7 @@ def existing_workouts(api):
     return found
 
 
-def existing_schedule(api, dates):
+def existing_schedule(api: WorkoutPublisher, dates):
     found = set()
     for year, month in sorted({(date.fromisoformat(day).year, date.fromisoformat(day).month) for day in dates}):
         response = api.get_scheduled_workouts(year, month)
@@ -134,7 +135,7 @@ def upload_lock(directory):
         connection.close()
 
 
-def upload_plan(api, workouts, schedule=False, *, sport="running"):
+def upload_plan(api: WorkoutPublisher, workouts, schedule=False, *, sport="running"):
     library = existing_workouts(api)
     dates = [workout["scheduled_date"] for workout in workouts if "scheduled_date" in workout] if schedule else []
     calendar = existing_schedule(api, dates) if dates else set()
@@ -149,15 +150,9 @@ def upload_plan(api, workouts, schedule=False, *, sport="running"):
                 raise RuntimeError(f"Existing workout {name!r} has no ID")
             print(f"Already uploaded: {name} (ID {workout_id}); skipping upload")
         else:
-            upload_name = {
-                "running": "upload_running_workout",
-                "cycling": "upload_cycling_workout",
-                "strength_training": "upload_strength_workout",
-            }[sport]
-            upload = getattr(api, upload_name)
             model = build_workout(source, sport=sport)
             try:
-                result = upload(model)
+                result = upload_for_sport(api, sport, model)
             except (GarminConnectConnectionError, OSError) as exc:
                 raise RuntimeError("Upload outcome is uncertain. Check Garmin Connect before retrying.") from exc
             workout_id = result.get("workoutId") if isinstance(result, dict) else None
@@ -191,7 +186,7 @@ def main(argv=None):
         parser.error("a JSON plan file or --login is required")
     try:
         if args.login:
-            authenticate()
+            open_workout_publisher()
             return 0
         plan = read_plan(args.plan)
         workouts = validate_plan(plan)
@@ -207,7 +202,7 @@ def main(argv=None):
                 print(f"DRY RUN: {source['name']} ({seconds} seconds)" + (f"; schedule {source['scheduled_date']}" if args.schedule and "scheduled_date" in source else ""))
             return 0
         with upload_lock(TOKEN_DIR):
-            upload_plan(authenticate(), workouts, args.schedule, sport=sport)
+            upload_plan(open_workout_publisher(), workouts, args.schedule, sport=sport)
         return 0
     except (InputError, ValueError, OSError, RuntimeError, EOFError,
             GarminConnectAuthenticationError, GarminConnectConnectionError,

@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+from workoutplanner.garmin.contracts import ActivityReader
 from workoutplanner.garmin import download as exporter
 
 
@@ -16,7 +17,7 @@ def run(activity_id, kind="running", **extra):
 
 class DownloadTests(unittest.TestCase):
     def api(self):
-        api = Mock()
+        api = Mock(spec_set=ActivityReader)
         api.get_activity.side_effect = lambda activity_id: run(int(activity_id),
             userId=19, latitude=1.5, nested={"heartRate": 130, "longitude": 3})
         api.get_activity_details.return_value = {
@@ -36,6 +37,20 @@ class DownloadTests(unittest.TestCase):
         api.get_activity_power_in_timezones.return_value = [{"zone": 3, "secsInZone": 60}]
         api.get_activity_weather.return_value = {"temperature": 12, "location": "Home"}
         return api
+
+    def test_portable_activity_examples(self):
+        path = Path(__file__).parent / "fixtures" / "garmin-activity-contract.json"
+        for example in json.loads(path.read_text()):
+            summary = example["summary"]
+            with self.subTest(sport=summary["activityTypeDTO"]["typeKey"]):
+                api = self.api()
+                api.get_activity.side_effect = None
+                api.get_activity.return_value = summary
+                for method, response in example["sections"].items():
+                    getattr(api, method).return_value = response
+                result = exporter.export_activity(api, summary, activity_type="all")
+                self.assertEqual({key: result[key] for key in example["expected"]},
+                                 example["expected"])
 
     def test_recent_runs_paged_and_filtered(self):
         api = self.api()
@@ -98,7 +113,7 @@ class DownloadTests(unittest.TestCase):
 
     def test_specific_id_cli_and_validation(self):
         api = self.api()
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "authenticate", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
             output = Path(tmp) / "runs.json"
             self.assertEqual(exporter.main(["--activity-id", "42", "--output", str(output),
                                             "--perceived-effort", "8", "--fatigue", "tired"]), 0)
@@ -113,7 +128,7 @@ class DownloadTests(unittest.TestCase):
     def test_default_and_multiple_cli(self):
         api = self.api()
         api.get_activities.return_value = [run(42), run(41), run(40, "cycling")]
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "authenticate", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
             output = Path(tmp) / "runs.json"
             self.assertEqual(exporter.main(["--output", str(output)]), 0)
             self.assertEqual(len(json.loads(output.read_text())["activities"]), 1)
@@ -133,7 +148,7 @@ class DownloadTests(unittest.TestCase):
             run(45, "cycling", inProgress=True), run(46, "indoor_cycling"),
         ]
         api.get_activity.side_effect = {"42": first, "43": last}.__getitem__
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "authenticate", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
             output = Path(tmp) / "rides.json"
             args = ["--time-range", "2026-11-20..2026-11-23",
                     "--activity-type", "cycling", "--output", str(output)]
@@ -153,7 +168,7 @@ class DownloadTests(unittest.TestCase):
         api.get_activities.assert_called_with(start=20, limit=20, activitytype=None)
 
     def test_invalid_selection_is_rejected_before_login(self):
-        with patch.object(exporter, "authenticate") as authenticate:
+        with patch.object(exporter, "open_activity_reader") as authenticate:
             for args in (
                 ["--time-range", "2026-11-23..2026-11-20"],
                 ["--time-range", "2026-02-30..2026-03-01"],
@@ -169,7 +184,7 @@ class DownloadTests(unittest.TestCase):
     def test_empty_range_leaves_existing_output_intact(self):
         api = self.api()
         api.get_activities_by_date.return_value = [run(42, "walking")]
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "authenticate", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
             output = Path(tmp) / "existing.json"
             output.write_text("existing", encoding="utf-8")
             self.assertEqual(exporter.main(["--time-range", "2026-11-23..2026-11-23",
@@ -207,7 +222,7 @@ class DownloadTests(unittest.TestCase):
         api = self.api()
         api.get_activity.return_value = run(42, "cycling")
         api.get_activity.side_effect = None
-        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "authenticate", return_value=api):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(exporter, "open_activity_reader", return_value=api):
             output = Path(tmp) / "runs.json"
             self.assertEqual(exporter.main(["--activity-id", "42", "--output", str(output)]), 1)
             self.assertFalse(output.exists())

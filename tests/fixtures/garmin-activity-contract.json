@@ -1,0 +1,17 @@
+[
+  {
+    "summary": {"activityId": 101, "activityTypeDTO": {"typeKey": "running"}, "startTimeLocal": "2026-01-03 09:00:00"},
+    "sections": {"get_activity_splits": {"lapDTOs": [{"distance": 1000, "duration": 345}]}},
+    "expected": {"activity_id": 101, "splits": {"lapDTOs": [{"distance": 1000, "duration": 345}]}}
+  },
+  {
+    "summary": {"activityId": 102, "activityTypeDTO": {"typeKey": "cycling"}, "startTimeLocal": "2026-01-04 09:00:00"},
+    "sections": {"get_activity_details": {"metricDescriptors": [{"metricsIndex": 0, "key": "directPower", "unit": "watt"}], "activityDetailMetrics": [{"metrics": [170]}]}},
+    "expected": {"activity_id": 102, "time_series": {"metric_descriptors": [{"metricsIndex": 0, "key": "directPower", "unit": "watt"}], "samples": [{"metrics": {"directPower": 170}}]}}
+  },
+  {
+    "summary": {"activityId": 103, "activityTypeDTO": {"typeKey": "strength_training"}, "startTimeLocal": "2026-01-05 09:00:00"},
+    "sections": {"get_activity_exercise_sets": {"exerciseSets": [{"repetitionCount": 8, "weight": 12000, "weightUnit": {"unitKey": "kilogram"}, "exercises": [{"category": "SQUAT", "name": "GOBLET_SQUAT"}]}]}},
+    "expected": {"activity_id": 103, "exercise_sets": {"exerciseSets": [{"repetitionCount": 8, "weight": 12000, "weightUnit": {"unitKey": "kilogram"}, "exercises": [{"category": "SQUAT", "name": "GOBLET_SQUAT"}]}]}}
+  }
+]

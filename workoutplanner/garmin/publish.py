@@ -12,18 +12,14 @@ from garminconnect import (
     GarminConnectNotFoundError, GarminConnectTooManyRequestsError,
 )
 
-from workoutplanner.garmin.auth import TOKEN_DIR, authenticate
+from workoutplanner.garmin.auth import TOKEN_DIR, open_workout_publisher
+from workoutplanner.garmin.contracts import WorkoutPublisher, upload_for_sport
 from workoutplanner.garmin.upload import build_workout, existing_workouts, upload_lock
 from workoutplanner.planning_input import read_object
 from workoutplanner.private_io import write_private
 from workoutplanner.workout_schema import validate_plan
 
 
-UPLOAD_METHODS = {
-    "running": "upload_running_workout",
-    "cycling": "upload_cycling_workout",
-    "strength_training": "upload_strength_workout",
-}
 STATE = TOKEN_DIR / "workoutplanner-managed.json"
 
 
@@ -52,7 +48,7 @@ def prepare_batch(plans):
     return digest, batch
 
 
-def publish_batch(api, state_path, digest, batch):
+def publish_batch(api: WorkoutPublisher, state_path, digest, batch):
     state = read_object(state_path) if state_path.exists() else {"active": {}, "pending": None}
     active = state["active"]
     pending = state["pending"]
@@ -79,7 +75,7 @@ def publish_batch(api, state_path, digest, batch):
         if matches:
             result = matches[0]
         else:
-            result = getattr(api, UPLOAD_METHODS[sport])(model)
+            result = upload_for_sport(api, sport, model)
         workout_id = result.get("workoutId") if isinstance(result, dict) else None
         if not str(workout_id).isdigit() or int(workout_id) < 1:
             raise ValueError("Garmin returned no valid workout ID. Check Garmin before retrying.")
@@ -109,7 +105,7 @@ def publish_batch(api, state_path, digest, batch):
 def publish(plans):
     digest, batch = prepare_batch(plans)
     with upload_lock(TOKEN_DIR):
-        publish_batch(authenticate(), STATE, digest, batch)
+        publish_batch(open_workout_publisher(), STATE, digest, batch)
 
 
 def main(argv=None):

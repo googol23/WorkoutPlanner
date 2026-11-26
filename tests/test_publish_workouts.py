@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
+from workoutplanner.garmin.contracts import WorkoutPublisher
 from workoutplanner.garmin import publish
 from workoutplanner.planning_input import read_object
 
@@ -14,7 +15,7 @@ class PublishTests(unittest.TestCase):
             old = "[WP-" + "a" * 24 + "] Old workout"
             publish.write_state(state_path, {"active": {old: "10"}, "pending": None})
             batch = {"new-run": ("running", object()), "new-ride": ("cycling", object())}
-            api = Mock()
+            api = Mock(spec_set=WorkoutPublisher)
             api.get_workouts.return_value = []
             api.upload_running_workout.return_value = {"workoutId": 20}
             api.upload_cycling_workout.side_effect = [OSError("network"), {"workoutId": 21}]
@@ -38,7 +39,7 @@ class PublishTests(unittest.TestCase):
             state_path = Path(folder) / "state.json"
             old = "[WP-" + "b" * 24 + "] Old workout"
             publish.write_state(state_path, {"active": {old: "10"}, "pending": None})
-            api = Mock()
+            api = Mock(spec_set=WorkoutPublisher)
             api.get_workouts.return_value = []
             api.upload_running_workout.return_value = {"workoutId": 20}
             api.get_workout_by_id.return_value = {"workoutName": "Renamed workout"}

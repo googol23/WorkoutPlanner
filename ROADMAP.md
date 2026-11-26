@@ -31,3 +31,31 @@ activity note. Keep personal history and athlete notes outside the repository.
 - [Cycling](docs/activities/cycling.md)
 - [Gym strength training](docs/activities/strength_training.md)
 - [Bouldering](docs/activities/bouldering.md)
+
+## Replacing the Garmin client
+
+1. Separate activity reads and workout publishing. The CLI now opens each
+   client through its own factory in `workoutplanner/garmin/auth.py`. Both
+   currently use the installed Garmin SDK and the existing local login.
+2. Implement personal-key authentication for the desktop reader.
+3. Compare activity exports from both readers for the same date range and
+   switch once metric coverage is verified.
+4. Replace SDK workout models and strength exercise identifier resolution.
+5. Verify supported publishing access, including scheduling and safe deletion.
+6. Remove the SDK after a clean installation passes the complete workflow.
+
+### Operations the replacement must cover
+
+| Component | Required behavior |
+| --- | --- |
+| Activity reader | Page through recent activities, list by inclusive local dates, fetch a summary by ID, and filter completed activities by sport. |
+| Optional detail | Export time series, splits, workout steps, heart-rate and power zones, weather and strength exercise sets. Keep missing sections explicit and preserve raw values and reported units. |
+| Workout publisher | List owned workouts, create running, cycling or strength templates, look up a workout by ID, read the monthly calendar, schedule a workout and delete a verified managed template by ID. |
+| Desktop credentials | The authentication module opens the local session. The reader and publisher receive authenticated clients. Login details do not belong in a workout or export. |
+
+The CLI and planner continue to exchange the existing versioned JSON.
+Synthetic [activity examples](tests/fixtures/garmin-activity-contract.json)
+capture running splits, cycling power and strength loads for reuse by a
+future Android client. The Python method names in
+[the desktop interfaces](workoutplanner/garmin/contracts.py) describe the
+current adapter. Android can implement the same data behavior in Kotlin.

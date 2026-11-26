@@ -24,6 +24,7 @@ def step(kind):
     return build
 
 
+from workoutplanner.garmin.contracts import WorkoutPublisher
 from workoutplanner.garmin.strength import build_strength_workout, resolve_exercise
 from workoutplanner.workout_schema import load_plan
 
@@ -103,7 +104,7 @@ class UploadTests(unittest.TestCase):
             library.Garmin.assert_not_called()
 
     def test_upload_then_schedule_and_skip_duplicates(self):
-        api = Mock()
+        api = Mock(spec_set=WorkoutPublisher)
         api.get_workouts.return_value = []
         api.get_scheduled_workouts.return_value = {"calendarItems": []}
         api.upload_running_workout.return_value = {"workoutId": 42}
@@ -122,7 +123,7 @@ class UploadTests(unittest.TestCase):
                        "power_watts": {"min": 110, "max": 140}}],
         }]}
         workouts = module.validate_plan(plan)
-        api = Mock()
+        api = Mock(spec_set=WorkoutPublisher)
         api.get_workouts.return_value = []
         api.upload_cycling_workout.return_value = {"workoutId": 5}
         module.upload_plan(api, workouts, sport="cycling")
@@ -158,7 +159,7 @@ class UploadTests(unittest.TestCase):
         self.assertEqual([step["endConditionValue"] for step in steps], [8, 60, 8])
         self.assertEqual(steps[0]["exerciseName"], "GOBLET_SQUAT")
         self.assertAlmostEqual(steps[0]["weightValue"], 9071.8474)
-        api = Mock()
+        api = Mock(spec_set=WorkoutPublisher)
         api.get_workouts.return_value = []
         api.upload_strength_workout.return_value = {"workoutId": 5}
         module.upload_plan(api, workouts, sport="strength_training")
@@ -167,7 +168,7 @@ class UploadTests(unittest.TestCase):
         module.upload_plan(api, workouts, sport="strength_training")
         api.upload_strength_workout.assert_called_once()
         plan["workouts"][0]["exercises"][0]["name"] = "Unknown exercise"
-        with tempfile.TemporaryDirectory() as folder, patch.object(module, "authenticate") as auth:
+        with tempfile.TemporaryDirectory() as folder, patch.object(module, "open_workout_publisher") as auth:
             path = Path(folder) / "strength.json"
             path.write_text(json.dumps(plan), encoding="utf-8")
             self.assertEqual(module.main([str(path), "--dry-run"]), 1)
@@ -179,7 +180,7 @@ class UploadTests(unittest.TestCase):
             "exercises": [{"name": "Goblet Squat", "sets": 2, "reps": {"min": 8, "max": 10},
                            "rest_seconds": 60, "effort": "Easy"}],
         }]}
-        with tempfile.TemporaryDirectory() as folder, patch.object(module, "authenticate") as auth:
+        with tempfile.TemporaryDirectory() as folder, patch.object(module, "open_workout_publisher") as auth:
             path = Path(folder) / "strength.json"
             path.write_text(json.dumps(plan), encoding="utf-8")
             self.assertEqual(module.main([str(path), "--schedule", "--dry-run"]), 1)
@@ -197,7 +198,7 @@ class UploadTests(unittest.TestCase):
                 pass
 
     def test_unknown_calendar_refuses_write(self):
-        api = Mock()
+        api = Mock(spec_set=WorkoutPublisher)
         api.get_workouts.return_value = []
         api.get_scheduled_workouts.return_value = None
         with self.assertRaises(RuntimeError):

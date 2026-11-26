@@ -13,7 +13,8 @@ from garminconnect import (
     GarminConnectNotFoundError, GarminConnectTooManyRequestsError,
 )
 
-from workoutplanner.garmin.auth import authenticate
+from workoutplanner.garmin.auth import open_activity_reader
+from workoutplanner.garmin.contracts import ActivityReader
 from workoutplanner.private_io import write_private
 
 
@@ -72,7 +73,7 @@ def collect_activities(page, activity_type, seen, bounds=None):
             yield item
 
 
-def recent_activities(api, limit, activity_type):
+def recent_activities(api: ActivityReader, limit, activity_type):
     activities = []
     seen = set()
     start = 0
@@ -90,11 +91,11 @@ def recent_activities(api, limit, activity_type):
         start += len(page)
 
 
-def recent_runs(api, limit):
+def recent_runs(api: ActivityReader, limit):
     return recent_activities(api, limit, "running")
 
 
-def activities_in_range(api, bounds, activity_type):
+def activities_in_range(api: ActivityReader, bounds, activity_type):
     start, end = bounds
     page = api.get_activities_by_date(start.isoformat(), end.isoformat())
     return list(collect_activities(page, activity_type, set(), bounds))
@@ -138,7 +139,7 @@ def series(details):
     }
 
 
-def optional(api, method, activity_id, unavailable, **kwargs):
+def optional(api: ActivityReader, method, activity_id, unavailable, **kwargs):
     call = getattr(api, method, None)
     if call is None:
         unavailable.append(method)
@@ -154,7 +155,7 @@ def optional(api, method, activity_id, unavailable, **kwargs):
     return result
 
 
-def export_activity(api, listing, feedback=None, *, activity_type="running"):
+def export_activity(api: ActivityReader, listing, feedback=None, *, activity_type="running"):
     activity_id = listing["activityId"]
     unavailable = []
     summary = api.get_activity(str(activity_id))
@@ -231,7 +232,7 @@ def main(argv=None):
     if args.perceived_effort is not None and not 1 <= args.perceived_effort <= 10:
         parser.error("--perceived-effort must be from 1 to 10")
     try:
-        api = authenticate()
+        api = open_activity_reader()
         if args.activity_id is not None:
             listings = [{"activityId": args.activity_id}]
         elif args.time_range:
