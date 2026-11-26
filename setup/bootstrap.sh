@@ -4,13 +4,15 @@ set -euo pipefail
 
 install_os=true
 install_codex=false
+reader_only=false
 for arg in "$@"; do
     case "$arg" in
+        --reader-only) reader_only=true ;;
         --skip-os) install_os=false ;;
         --install-codex) install_codex=true ;;
         --skip-codex) install_codex=false ;;
         -h|--help)
-            printf '%s\n' 'Usage: bash setup/bootstrap.sh [--skip-os] [--install-codex|--skip-codex]'
+            printf '%s\n' 'Usage: bash setup/bootstrap.sh [--reader-only] [--skip-os] [--install-codex|--skip-codex]'
             exit 0 ;;
         *) printf 'Unknown option: %s\n' "$arg" >&2; exit 2 ;;
     esac
@@ -22,7 +24,12 @@ unset PIP_PROXY
 
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 python_bin=${WORKOUTPLANNER_PYTHON:-python3}
-venv_dir=${WORKOUTPLANNER_VENV:-"$repo_dir/.venv"}
+if "$reader_only"; then
+    mkdir -p -m 700 "$repo_dir/private"
+    venv_dir=${WORKOUTPLANNER_VENV:-"$repo_dir/private/reader-venv"}
+else
+    venv_dir=${WORKOUTPLANNER_VENV:-"$repo_dir/.venv"}
+fi
 
 if "$install_os"; then
     if ! command -v apt-get >/dev/null; then
@@ -45,7 +52,13 @@ if ! "$python_bin" -c 'import sys; raise SystemExit(sys.version_info < (3, 12))'
 fi
 "$python_bin" -m venv "$venv_dir"
 requirements="$repo_dir/setup/requirements-garmin.txt"
-if "$venv_dir/bin/python" -c 'import platform, sys; raise SystemExit(not (platform.python_implementation() == "CPython" and sys.version_info[:2] == (3, 12) and sys.platform == "linux" and platform.machine() == "x86_64"))'; then
+if "$reader_only"; then
+    requirements="$repo_dir/setup/requirements-fit-check.txt"
+    if ! "$venv_dir/bin/python" -c 'from importlib.util import find_spec; raise SystemExit(find_spec("garminconnect") is not None)'; then
+        printf '%s\n' 'Choose a clean reader environment with WORKOUTPLANNER_VENV. This one can import garminconnect.' >&2
+        exit 1
+    fi
+elif "$venv_dir/bin/python" -c 'import platform, sys; raise SystemExit(not (platform.python_implementation() == "CPython" and sys.version_info[:2] == (3, 12) and sys.platform == "linux" and platform.machine() == "x86_64"))'; then
     requirements="$repo_dir/setup/requirements-linux-x86_64-py312.lock"
 fi
 PIP_CONFIG_FILE=/dev/null "$venv_dir/bin/python" -m pip install --only-binary=:all: -r "$requirements"
@@ -76,5 +89,13 @@ if "$install_codex"; then
     printf '%s\n' 'In your current shell, run: export PATH="$HOME/.local/bin:$PATH"'
 fi
 
-(cd -- "$repo_dir" && "$venv_dir/bin/python" -m unittest discover -s tests)
+venv_dir=$(cd -- "$venv_dir" && pwd)
+cd -- "$repo_dir"
+if "$reader_only"; then
+    for suite in test_personal_api.py test_personal_reader.py test_fit_check.py test_endurance_fit.py test_week_planning.py; do
+        "$venv_dir/bin/python" -m unittest discover -s tests -p "$suite"
+    done
+else
+    "$venv_dir/bin/python" -m unittest discover -s tests
+fi
 printf 'Activate the environment with: source %q\n' "$venv_dir/bin/activate"

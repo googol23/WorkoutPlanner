@@ -46,7 +46,10 @@ activity note. Keep personal history and athlete notes outside the repository.
 5. Live publishing, scheduling by ID and managed deletion passed using the
    existing local publisher. An official replacement requires access to
    [Garmin's Training API](https://developer.garmin.com/gc-developer-program/enterprise/training-api/)
-   and verification of the publisher operations below.
+   and verification of the publisher operations below. Garmin's overview
+   lists Training API under Starter and Enterprise, while the dedicated page
+   specifies Enterprise. Confirm the required access with Garmin before
+   building against it.
 6. Remove the legacy dependency after a replacement publisher passes the
    complete workflow in a clean installation.
 

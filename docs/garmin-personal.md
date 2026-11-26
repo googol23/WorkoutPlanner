@@ -112,17 +112,18 @@ with only the pinned FIT decoder. From the repository root:
 (
   set -e
   unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_proxy ftp_proxy
-  mkdir -p -m 700 private
-  .venv/bin/python -m venv private/reader-venv
+  bash setup/bootstrap.sh --reader-only --skip-os
   py=private/reader-venv/bin/python
-  "$py" -m pip --isolated install -r setup/requirements-fit-check.txt
-  "$py" -c 'from importlib.util import find_spec; assert find_spec("garminconnect") is None'
   "$py" download_activities.py --source personal --activity-type all --limit 1 \
     --output private/standalone-reader.json
 )
 ```
 
-Use the desktop session containing your existing Garmin Personal API key.
+Use Python 3.12 or newer with venv. Set `WORKOUTPLANNER_PYTHON` if needed.
+Omit `--skip-os` on Debian or Ubuntu to install the system dependencies,
+including the desktop keyring tool. Add `--install-codex` if you also need
+the Codex CLI for workout generation. Use the desktop session containing your
+Garmin Personal API key.
 Live publishing and the legacy reader still use the main project environment.
 
 To generate workout options in the reader environment, use a recent mixed
