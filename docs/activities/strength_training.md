@@ -79,3 +79,8 @@ Live FIT verification for one session found all 36 set records, including
 sets had a recorded FIT weight in kg and none had an exercise subtype.
 Equivalence with the legacy loads was unverified. The opt-in Personal API
 sync now exports those recorded FIT fields for planning.
+
+The [strength encoder check](../../tests/fixtures/strength-encoder-check.json)
+uses two sets of eight Goblet Squats at 10 kg with one 60-second rest between
+sets. Submit the unscheduled plan twice to verify upload and duplicate
+detection, then inspect the exercise, repetitions, load and rest in Connect.

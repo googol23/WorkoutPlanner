@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "sport": "strength_training",
+  "workouts": [{
+    "name": "WorkoutPlanner strength encoder check 815cedc",
+    "warmup": "Synthetic workout for encoder verification.",
+    "estimated_duration_seconds": 300,
+    "exercises": [{
+      "name": "Goblet Squat",
+      "sets": 2,
+      "reps": {"min": 8, "max": 8},
+      "effort": "Check the displayed repetition count and load.",
+      "rest_seconds": 60,
+      "load": {"value": 10, "unit": "kg"}
+    }]
+  }]
+}

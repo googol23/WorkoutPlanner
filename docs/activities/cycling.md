@@ -36,3 +36,7 @@ The [cycling encoder check](../../tests/fixtures/cycling-encoder-check.json)
 is an unscheduled ten-minute ride with a synthetic 100–140 W target. Submit
 it twice with the uploader to verify creation and duplicate detection. Open
 the saved workout in Garmin Connect to check the displayed target.
+
+Garmin Connect accepted the local encoder's cycling test. A second submission
+returned the same workout ID and skipped creation. Display of the power target
+in Garmin Connect still needs confirmation.
