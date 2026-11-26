@@ -73,4 +73,9 @@ alone does not establish that the recorded sets, reps and loads are equivalent.
 
 A live comparison found 36 exercise-set records in the existing export and no
 exerciseSets list in either Personal API JSON response for that session.
-Original FIT coverage is pending the [local FIT comparison](../garmin-personal.md).
+
+Live FIT verification for one session found all 36 set records, including
+18 active sets with matching repetitions in returned order. All 18 active
+sets had a recorded FIT weight in kg and none had an exercise subtype.
+Equivalence with the legacy loads was unverified. The opt-in Personal API
+sync now exports those recorded FIT fields for planning.

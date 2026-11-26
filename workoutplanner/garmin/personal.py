@@ -114,10 +114,16 @@ def check_fit(activity_id, legacy_export):
     if len(groups) != 1:
         raise RuntimeError("Expected one exercise-set list in the existing export.")
     token = exchange(keyring("lookup"))
-    archive = request("GET", f"/download-service/files/activity/{activity_id}", "Bearer " + token,
+    fit_check.report(groups[0], read_fit_sets(activity_id, "Bearer " + token))
+
+
+def read_fit_sets(activity_id, authorization, *, optional=False):
+    archive = request("GET", f"/download-service/files/activity/{activity_id}", authorization,
                       accept="application/zip, application/x-zip-compressed, application/octet-stream",
-                      limit=fit_check.MAX_BYTES)
-    fit_check.report(groups[0], fit_check.decode_sets(archive))
+                      limit=fit_check.MAX_BYTES, optional=optional)
+    if not archive and optional:
+        return []
+    return fit_check.decode_sets(archive)
 
 
 def check(activity_id, legacy_export=None):

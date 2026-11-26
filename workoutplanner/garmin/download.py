@@ -15,6 +15,7 @@ from garminconnect import (
 
 from workoutplanner.garmin.auth import open_activity_reader
 from workoutplanner.garmin.contracts import ActivityReader
+from workoutplanner.garmin.personal_reader import PersonalReader
 from workoutplanner.private_io import write_private
 
 
@@ -78,6 +79,7 @@ def recent_activities(api: ActivityReader, limit, activity_type):
     seen = set()
     start = 0
     page_size = 20
+    previous_page = None
     # The existing running command uses Garmin's server-side running filter.
     server_type = "running" if activity_type == "running" else None
     while True:
@@ -88,6 +90,10 @@ def recent_activities(api: ActivityReader, limit, activity_type):
                 return activities
         if len(page) < page_size:
             return activities
+        page_ids = tuple(str(item.get("activityId")) for item in page)
+        if page_ids == previous_page:
+            raise RuntimeError("Activity pagination repeated a page.")
+        previous_page = page_ids
         start += len(page)
 
 
@@ -183,7 +189,13 @@ def export_activity(api: ActivityReader, listing, feedback=None, *, activity_typ
         if isinstance(exercise_sets, dict) and exercise_sets.get("exerciseSets") == []:
             unavailable.append(method)
             exercise_sets = None
+        if isinstance(exercise_sets, dict) and exercise_sets.get("source") == "original_fit":
+            if any(row.get("categorySubtype") is None for row in exercise_sets["exerciseSets"]
+                   if row.get("setType") == "ACTIVE"):
+                unavailable.append("exercise subtype missing on some or all active FIT sets")
         data["exercise_sets"] = exercise_sets
+    if type_key(summary) is None and type_key(listing):
+        summary = {**summary, "activityType": {"typeKey": key}}
     summary_fields = summary.get("summaryDTO")
     if not isinstance(summary_fields, dict):
         summary_fields = {}
@@ -219,6 +231,8 @@ def main(argv=None):
                            help="inclusive activity-local dates, in YYYY-MM-DD format")
     parser.add_argument("--activity-type", default="running", metavar="KEY",
                         help="exact Garmin type key or all (default: running)")
+    parser.add_argument("--source", choices=("legacy", "personal"), default="legacy",
+                        help="Garmin client for reads (default: legacy)")
     parser.add_argument("--output", help="output JSON path (default: <activity-type>_activities.json)")
     parser.add_argument("--perceived-effort", type=int, help="perceived effort from 1 to 10")
     parser.add_argument("--fatigue", help="optional fatigue notes")
@@ -232,7 +246,7 @@ def main(argv=None):
     if args.perceived_effort is not None and not 1 <= args.perceived_effort <= 10:
         parser.error("--perceived-effort must be from 1 to 10")
     try:
-        api = open_activity_reader()
+        api = PersonalReader() if args.source == "personal" else open_activity_reader()
         if args.activity_id is not None:
             listings = [{"activityId": args.activity_id}]
         elif args.time_range:
