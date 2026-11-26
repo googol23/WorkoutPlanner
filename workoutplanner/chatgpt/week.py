@@ -14,6 +14,7 @@ from workoutplanner.chatgpt.generate import run_codex
 from workoutplanner.chatgpt.history import activity_date, activity_type_key, calendar_day, summarize_activity
 from workoutplanner.chatgpt.prompt import MAX_PROMPT_BYTES, SKILL_DIR, SPORTS, validate_existing_plan
 from workoutplanner.chatgpt.strength_catalog import select_catalog
+from workoutplanner.garmin.encoding import build_workout
 from workoutplanner.planning_input import build_input, read_object
 from workoutplanner.private_io import write_private
 
@@ -152,8 +153,16 @@ def validate_week_response(response, profiles):
     for name, plan in plans.items():
         if plan is None:
             continue
-        if not isinstance(plan, dict) or len(validate_existing_plan(plan, profiles[name]["activity_type"])) != 1:
+        sport = profiles[name]["activity_type"]
+        if not isinstance(plan, dict):
+            raise ValueError(f"Expected a workout plan object for profile {name}")
+        workouts = validate_existing_plan(plan, sport)
+        if len(workouts) != 1:
             raise ValueError(f"Expected exactly one workout for profile {name}")
+        try:
+            build_workout(workouts[0], sport=sport)
+        except ValueError as exc:
+            raise ValueError(f"Profile {name}: {exc}") from exc
         usable[name] = plan
     priority = bundle["priority"]
     if (not isinstance(priority, list) or not all(isinstance(name, str) for name in priority)

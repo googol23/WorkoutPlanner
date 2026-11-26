@@ -66,6 +66,13 @@ class WeekPlanningTests(unittest.TestCase):
             for name, plan in self.plans.items():
                 self.assertEqual(json.loads((run_dir / f"{name}.json").read_text()), plan)
 
+    def test_unknown_exercise_is_rejected_before_saving_batch(self):
+        self.plans["gym"]["workouts"][0]["exercises"][0]["name"] = "Made Up Exercise"
+        payload = {"priority": list(self.plans), "plans": self.plans}
+        response = {"rationale": "Synthetic", "workout_json": json.dumps(payload)}
+        with self.assertRaisesRegex(ValueError, "Profile gym: Unknown Garmin exercise"):
+            week.validate_week_response(response, self.profiles)
+
     def test_rejects_wrong_sport_and_allows_explicit_deferral(self):
         plans = {**self.plans, "gym": None}
         response = {"rationale": "Defer gym", "workout_json": json.dumps(

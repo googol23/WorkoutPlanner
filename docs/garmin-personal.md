@@ -124,3 +124,21 @@ with only the pinned FIT decoder. From the repository root:
 
 Use the desktop session containing your existing Garmin Personal API key.
 Live publishing and the legacy reader still use the main project environment.
+
+To generate workout options in the reader environment, use a recent mixed
+export spanning the planning window. The one-record installation check
+can omit relevant sessions. With the 14-day export from the reader comparison:
+
+```bash
+(
+  set -e
+  unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_proxy ftp_proxy
+  export PATH="$HOME/.local/bin:$PATH"
+  private/reader-venv/bin/python -m workoutplanner.chatgpt.week \
+    --activities private/recent-personal.json --profiles private/athlete_profiles.json
+)
+```
+
+Codex uses your local ChatGPT login. Each prescribed option must pass the
+sport schema and the local Garmin encoder before the planner saves the batch.
+Review the saved rationale and workout files in the printed run directory.
