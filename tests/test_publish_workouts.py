@@ -1,3 +1,5 @@
+from contextlib import redirect_stdout
+from io import StringIO
 import tempfile
 import unittest
 from pathlib import Path
@@ -45,3 +47,27 @@ class PublishTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "no longer matches"):
                 publish.publish_batch(api, state_path, "batch", {"new": {"sportType": "running"}})
             api.delete_workout.assert_not_called()
+
+    def test_preview_reports_actions_without_modifying_garmin_or_journal(self):
+        api = Mock(spec_set=WorkoutPublisher)
+        old = "[WP-" + "a" * 24 + "] Old"
+        api.get_workouts.return_value = [{"workoutName": "reuse", "workoutId": 11}]
+        api.get_workout_by_id.return_value = {"workoutName": old}
+        with tempfile.TemporaryDirectory() as folder, redirect_stdout(StringIO()) as output:
+            path = Path(folder) / "state.json"
+            publish.write_state(path, {"active": {old: "10"}, "pending": None})
+            original = path.read_bytes()
+            publish.publish_batch(api, path, "batch", {"reuse": {}, "new": {}}, preview=True)
+            self.assertEqual(path.read_bytes(), original)
+            self.assertIn("1 to create, 1 to reuse, 1 to retire", output.getvalue())
+        api.upload_workout.assert_not_called()
+        api.delete_workout.assert_not_called()
+
+    def test_first_preview_leaves_no_journal(self):
+        api = Mock(spec_set=WorkoutPublisher)
+        api.get_workouts.return_value = []
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "state.json"
+            publish.publish_batch(api, path, "batch", {"new": {}}, preview=True)
+            self.assertFalse(path.exists())
+        api.upload_workout.assert_not_called()

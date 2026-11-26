@@ -48,7 +48,7 @@ def prepare_batch(plans):
     return digest, batch
 
 
-def publish_batch(api: WorkoutPublisher, state_path, digest, batch):
+def publish_batch(api: WorkoutPublisher, state_path, digest, batch, *, preview=False):
     state = read_object(state_path) if state_path.exists() else {"active": {}, "pending": None}
     active = state["active"]
     pending = state["pending"]
@@ -57,12 +57,14 @@ def publish_batch(api: WorkoutPublisher, state_path, digest, batch):
             print("This workout batch was already published.")
             return
         pending = state["pending"] = {"digest": digest, "workouts": {}}
-        write_state(state_path, state)
+        if not preview:
+            write_state(state_path, state)
     elif pending["digest"] != digest:
         raise ValueError("A prior batch is unfinished. Publish its saved run directory again before replacing it.")
 
     library = existing_workouts(api)
     uploaded = pending["workouts"]
+    counts = {"create": 0, "reuse": 0, "retire": 0}
     for name, payload in batch.items():
         matches = library.get(name, [])
         if len(matches) > 1:
@@ -71,16 +73,27 @@ def publish_batch(api: WorkoutPublisher, state_path, digest, batch):
             current = api.get_workout_by_id(uploaded[name])
             if not isinstance(current, dict) or current.get("workoutName") != name:
                 raise ValueError("A pending workout no longer matches Garmin. Check the Garmin library before retrying.")
+            if preview:
+                counts["reuse"] += 1
+                print(f"Would reuse: {name}")
             continue
         if matches:
             result = matches[0]
+        elif preview:
+            counts["create"] += 1
+            print(f"Would create: {name}")
+            continue
         else:
             result = api.upload_workout(payload)
         workout_id = result.get("workoutId") if isinstance(result, dict) else None
         if not str(workout_id).isdigit() or int(workout_id) < 1:
             raise ValueError("Garmin returned no valid workout ID. Check Garmin before retrying.")
         uploaded[name] = str(workout_id)
-        write_state(state_path, state)
+        if preview:
+            counts["reuse"] += 1
+            print(f"Would reuse: {name}")
+        else:
+            write_state(state_path, state)
 
     # Persist every replacement before retiring any previous template.
     for name, workout_id in list(active.items()):
@@ -94,23 +107,33 @@ def publish_batch(api: WorkoutPublisher, state_path, digest, batch):
         if current is not None:
             if not isinstance(current, dict) or current.get("workoutName") != name:
                 raise ValueError("An old workout no longer matches its marker. It was left in Garmin.")
-            api.delete_workout(workout_id)
+            if preview:
+                counts["retire"] += 1
+                print(f"Would retire: {name} (ID {workout_id})")
+            else:
+                api.delete_workout(workout_id)
+        if preview:
+            continue
         del active[name]
         write_state(state_path, state)
 
+    if preview:
+        print("Preview: {create} to create, {reuse} to reuse, {retire} to retire.".format(**counts))
+        return
     write_state(state_path, {"active": uploaded, "pending": None})
     print(f"Published {len(uploaded)} managed workouts and retired the previous batch.")
 
 
-def publish(plans):
+def publish(plans, *, preview=False):
     digest, batch = prepare_batch(plans)
     with upload_lock(TOKEN_DIR):
-        publish_batch(open_workout_publisher(), STATE, digest, batch)
+        publish_batch(open_workout_publisher(), STATE, digest, batch, preview=preview)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run_dir", type=Path, help="saved planner run directory to publish or retry")
+    parser.add_argument("--preview", action="store_true", help="inspect Garmin and report proposed changes")
     args = parser.parse_args(argv)
     try:
         profiles = read_object(args.run_dir / "batch.json")["profiles"]
@@ -118,7 +141,7 @@ def main(argv=None):
             isinstance(name, str) and re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", name) for name in profiles
         ):
             raise ValueError("Invalid batch profile list")
-        publish({name: read_object(args.run_dir / f"{name}.json") for name in profiles})
+        publish({name: read_object(args.run_dir / f"{name}.json") for name in profiles}, preview=args.preview)
         return 0
     except (OSError, ValueError, RuntimeError, KeyError, EOFError,
             GarminConnectAuthenticationError, GarminConnectConnectionError,

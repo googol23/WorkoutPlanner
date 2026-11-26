@@ -142,3 +142,10 @@ can omit relevant sessions. With the 14-day export from the reader comparison:
 Codex uses your local ChatGPT login. Each prescribed option must pass the
 sport schema and the local Garmin encoder before the planner saves the batch.
 Review the saved rationale and workout files in the printed run directory.
+
+The athlete confirmed live standalone generation for running, cycling and
+strength. To preview publication, switch back to the main environment and run
+`.venv/bin/python -m workoutplanner.garmin.publish RUN_DIRECTORY --preview`.
+Use the exact directory printed by the planner. The command uses the local
+publisher login, Garmin library and managed journal to report prospective
+creations, reuses and retirements without modifying the workouts or journal.

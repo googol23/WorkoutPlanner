@@ -75,5 +75,5 @@ transport still uses garminconnect. Scheduling by existing ID recognized the
 scheduled strength template on retry. The isolated managed batch A retained its ID on retry
 and its marked template was verified in Garmin. The isolated replacement
 verified B by ID after retry and confirmed A was absent. A FIT-only Python environment also synced an
-activity live. The next check generates locally validated workout options
-from the mixed Personal API history with the same environment.
+activity live. That same environment generated validated running, cycling and strength options
+from mixed Personal API history with the local ChatGPT login.
