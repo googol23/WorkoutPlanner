@@ -95,3 +95,6 @@ call. The retry recognized that second ID and its calendar entry. The
 earlier ID's availability at scheduling time is unknown. Use the
 [existing-ID scheduling command](../workflow.md#scheduling-a-known-garmin-template)
 when reusing a known template.
+
+The live existing-ID scheduling check recognized the previously scheduled
+strength workout on the requested date and skipped the calendar write.

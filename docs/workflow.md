@@ -208,3 +208,13 @@ once on the requested date. It never creates a template. It supports a
 single-workout plan. The explicit date takes precedence over a plan date.
 The original `--schedule` command can create a workout if the name lookup
 finds no match. Use that mode when creation is intended.
+
+### Live managed-batch acceptance
+
+From the repository root, run
+`PYTHONPATH=. .venv/bin/python tests/check_managed_batch.py`. This first
+stage creates or reuses one unscheduled marked cycling test template, retries
+the same saved batch and verifies its ID and name with Garmin. The check
+uses the normal publisher lock and a separate local journal in the Garmin
+token directory named `workoutplanner-acceptance.json`. Keep that journal
+for the replacement test.

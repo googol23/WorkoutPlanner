@@ -71,5 +71,6 @@ for one run and one ride against the default reader.
 
 Live creation and duplicate detection have now passed for the local JSON
 encoder on running, cycling and strength templates. The current live
-transport still uses garminconnect. Next, schedule the existing strength
-test template on one date and repeat to verify calendar deduplication.
+transport still uses garminconnect. Scheduling by existing ID recognized the
+scheduled strength template on retry. The next live check publishes and
+retries an isolated managed batch before testing replacement.
