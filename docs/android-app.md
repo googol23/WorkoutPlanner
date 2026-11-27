@@ -36,6 +36,14 @@ The initial Android milestone provides:
   available cross-sport history from the last 14 days. The app displays both
   the structured input and the draft instruction without sending either to a
   model or other service.
+- Load the shared WorkoutPlanner coordinator and each selected sport's
+  standalone `SKILL.md`, evidence register and output contract from the
+  repository's `skills/workout-planner/` directory. The Android Gradle build
+  packages those files as app assets, so the phone and Python runner use the
+  same planning instructions.
+- Add a compact, profile-specific Garmin exercise selection to strength
+  planning input, based on available catalog defaults, preferred exercises
+  and preferred machines. The full 1,527-name catalog is not sent to the model.
 - Sign in through OpenAI's documented Sign in with ChatGPT plan-usage flow.
   Tokens are encrypted with Android Keystore. When the user taps Generate, the
   app sends the draft prompt to the public Responses API with `store: false`
