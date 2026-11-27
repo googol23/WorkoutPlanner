@@ -20,7 +20,7 @@ class EnduranceFitTests(unittest.TestCase):
         buffer = BytesIO()
         with ZipFile(buffer, "w") as archive:
             archive.writestr("activity.fit", encoder.close())
-        with patch.object(personal, "exchange", return_value="token"), patch.object(personal, "keyring"), patch.object(
+        with patch.object(personal, "exchange", return_value="token"), patch.object(personal, "load_key"), patch.object(
                 personal, "request", side_effect=[b'{"activityId":42}', buffer.getvalue()]) as request:
             row = download.export_activity(PersonalReader(), {"activityId": 42,
                 "activityType": {"typeKey": "cycling"}}, activity_type="all")

@@ -9,7 +9,7 @@ from workoutplanner.garmin.endurance import planner_sections
 
 class PersonalReader:
     def __init__(self):
-        self._authorization = "Bearer " + personal.exchange(personal.keyring("lookup"))
+        self._authorization = "Bearer " + personal.exchange(personal.load_key())
 
     def _search(self, **params):
         path = "/activitylist-service/activities/search/activities?" + urlencode(params)

@@ -11,7 +11,7 @@ from workoutplanner.garmin.personal_reader import PersonalReader
 
 class PersonalReaderTests(unittest.TestCase):
     def setUp(self):
-        self.enterContext(patch.object(personal, "keyring", return_value="key"))
+        self.enterContext(patch.object(personal, "load_key", return_value="key"))
         self.enterContext(patch.object(personal, "exchange", return_value="token"))
 
     def test_date_range_pages_and_deduplicates(self):

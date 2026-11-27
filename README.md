@@ -38,13 +38,14 @@ python -m workoutplanner.garmin.personal login
 python upload_workouts.py --login
 ```
 
-The Personal API login asks for Garmin's expiring API key in a hidden prompt
-and stores it in your desktop keyring. The uploader login establishes the
+The Personal API login asks for Garmin's expiring API key in a hidden prompt,
+verifies it, and saves it to `private/garmin_personal_api_key` with owner-only
+permissions (directory `700`, file `600`). The uploader login establishes the
 separate local session used only when publishing workouts.
 
 Choose **Sign in with ChatGPT**. The version and flag checks help confirm
 the shell is using the compatible CLI, particularly if an older Snap
-installation is also present. Garmin Personal API credentials stay in the desktop keyring. The publishing
+installation is also present. Garmin Personal API credentials stay in the ignored `private/` directory. The publishing
 session and Codex credentials are stored locally. Keep credential files out of Git.
 
 ### 3. Set your goals

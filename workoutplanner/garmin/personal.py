@@ -4,30 +4,53 @@ import argparse
 from getpass import GetPassWarning, getpass
 from http.client import HTTPException, HTTPSConnection
 import json
-from workoutplanner.garmin import fit_check
+import os
 from pathlib import Path
 import re
-import subprocess
+import stat
 import sys
+import tempfile
 import warnings
+from workoutplanner.garmin import fit_check
 
 
 HOST = "personal.connectapi.garmin.com"
 TOKEN_PATH = "/personalapitoken-service/personal-api/personal-api-key/token"
-ATTRIBUTES = ["application", "workoutplanner", "credential", "garmin-personal-api"]
+KEY_FILE = Path(__file__).resolve().parents[2] / "private" / "garmin_personal_api_key"
 
 
-def keyring(command, key=None):
-    args = ["secret-tool", command]
-    if command == "store":
-        args += ["--label=WorkoutPlanner Garmin Personal API"]
+def save_key(key):
+    key = credential(key)
+    directory = KEY_FILE.parent
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(directory, 0o700)
+    fd, temporary = tempfile.mkstemp(prefix=".garmin-key-", dir=directory)
     try:
-        result = subprocess.run(args + ATTRIBUTES, input=key or "", capture_output=True, text=True)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(key + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, KEY_FILE)
+        os.chmod(KEY_FILE, 0o600)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def load_key():
+    try:
+        info = KEY_FILE.lstat()
     except FileNotFoundError:
-        raise RuntimeError("Install libsecret-tools and use a desktop Secret Service keyring.") from None
-    if result.returncode:
-        raise RuntimeError("Check that your desktop keyring is unlocked and run the login command.")
-    return result.stdout.strip()
+        raise RuntimeError(f"Personal API key file not found at {KEY_FILE}. Run the login command.") from None
+    if not stat.S_ISREG(info.st_mode):
+        raise RuntimeError("Personal API key must be stored in a regular file.")
+    if stat.S_IMODE(info.st_mode) & 0o077:
+        raise RuntimeError(f"Personal API key file is accessible to other users. Run: chmod 600 {KEY_FILE}")
+    try:
+        return credential(KEY_FILE.read_text(encoding="utf-8").strip())
+    except OSError:
+        raise RuntimeError("Could not read the Personal API key file.") from None
 
 
 def request(method, path, authorization, *, optional=False, accept="*/*", limit=None):
@@ -76,8 +99,8 @@ def login():
         except GetPassWarning:
             raise RuntimeError("Run login in an interactive terminal with hidden input.") from None
     exchange(key)
-    keyring("store", key)
-    print("Garmin accepted the key. Saved it in your desktop keyring.")
+    save_key(key)
+    print(f"Garmin accepted the key. Saved it to {KEY_FILE} with owner-only permissions.")
 
 
 def exercise_set_groups(value):
@@ -113,7 +136,7 @@ def check_fit(activity_id, legacy_export):
     groups = reference_sets(activity_id, legacy_export)
     if len(groups) != 1:
         raise RuntimeError("Expected one exercise-set list in the existing export.")
-    token = exchange(keyring("lookup"))
+    token = exchange(load_key())
     fit_check.report(groups[0], read_fit_sets(activity_id, "Bearer " + token))
 
 
@@ -131,7 +154,7 @@ def read_fit_sets(activity_id, authorization, *, optional=False):
 
 
 def check(activity_id, legacy_export=None):
-    token = exchange(keyring("lookup"))
+    token = exchange(load_key())
     activity = json.loads(request("GET", f"/activity-service/activity/{activity_id}", "Bearer " + token))
     if not isinstance(activity, dict) or str(activity.get("activityId")) != str(activity_id):
         raise RuntimeError("Garmin returned an unexpected activity.")

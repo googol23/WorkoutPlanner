@@ -1,6 +1,8 @@
 import io
 import json
+import os
 from pathlib import Path
+import stat
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -12,27 +14,30 @@ class PersonalApiTests(unittest.TestCase):
     def test_login_checks_key_before_storing(self):
         with patch.object(personal, "getpass", return_value="new-key"), patch.object(
             personal, "request", return_value=b"abc.def.xyz\n"
-        ) as request, patch.object(personal, "keyring") as keyring:
+        ) as request, tempfile.TemporaryDirectory() as folder, patch.object(
+            personal, "KEY_FILE", Path(folder) / "private" / "garmin_personal_api_key"
+        ):
             personal.login()
             request.assert_called_once_with("POST", personal.TOKEN_PATH, "ApiKey new-key")
-            keyring.assert_called_once_with("store", "new-key")
-            keyring.reset_mock()
+            self.assertEqual(personal.load_key(), "new-key")
+            self.assertEqual(stat.S_IMODE(personal.KEY_FILE.stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(personal.KEY_FILE.parent.stat().st_mode), 0o700)
+            request.reset_mock()
             request.return_value = b"unexpected"
             with self.assertRaises(RuntimeError):
                 personal.login()
-            keyring.assert_not_called()
+            request.assert_called_once()
 
-    def test_keyring_receives_key_on_stdin(self):
-        with patch.object(personal.subprocess, "run") as run:
-            run.return_value.returncode = 0
-            run.return_value.stdout = ""
-            personal.keyring("store", "private-value")
-            self.assertEqual(run.call_args.kwargs["input"], "private-value")
-            self.assertNotIn("private-value", run.call_args.args[0])
+    def test_load_key_rejects_permissions_visible_to_other_users(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(personal, "KEY_FILE", Path(folder) / "key"):
+            personal.KEY_FILE.write_text("private-value\n")
+            os.chmod(personal.KEY_FILE, 0o644)
+            with self.assertRaisesRegex(RuntimeError, "chmod 600"):
+                personal.load_key()
 
     def test_read_and_compare(self):
         sets = [{"repetitionCount": 8, "weight": 12000}]
-        with tempfile.TemporaryDirectory() as folder, patch.object(personal, "keyring", return_value="key"), patch.object(
+        with tempfile.TemporaryDirectory() as folder, patch.object(personal, "load_key", return_value="key"), patch.object(
             personal, "request", side_effect=[b"a.b.c", json.dumps({"activityId": 17, "exerciseSets": sets}).encode()]
         ) as request, patch("sys.stdout", new_callable=io.StringIO) as output:
             path = Path(folder) / "export.json"
@@ -52,7 +57,7 @@ class PersonalApiTests(unittest.TestCase):
                 (b'[{"exerciseSets":[]}]', "0 exercise-set records"),
                 (b'[{"exerciseSets":[{"repetitionCount":12}]}]', "match"),
             ):
-                with self.subTest(payload=payload), patch.object(personal, "keyring", return_value="key"), patch.object(
+                with self.subTest(payload=payload), patch.object(personal, "load_key", return_value="key"), patch.object(
                     personal, "request", side_effect=[b"a.b.c", b'{"activityId":17}', payload]
                 ) as request, patch("sys.stdout", new_callable=io.StringIO) as output:
                     self.assertEqual(personal.main(["check", "17", "--compare-export", str(path)]), 0)

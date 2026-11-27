@@ -2,7 +2,7 @@
 
 ## Garmin export
 
-For normal activity sync, pass `--source personal`. This uses WorkoutPlanner's small Garmin Personal API client and the expiring personal key stored in the desktop keyring. It does not import the Garmin Connect wrapper. The default `legacy` source remains for the parity comparison documented in [Garmin Personal API](garmin-personal.md).
+For normal activity sync, pass `--source personal`. This uses WorkoutPlanner's small Garmin Personal API client and the expiring personal key stored in the ignored `private/garmin_personal_api_key` file. It does not import the Garmin Connect wrapper. The default `legacy` source remains for the parity comparison documented in [Garmin Personal API](garmin-personal.md).
 
 The exporter is read-only. Its default is the newest completed activity with
 the exact `running` type key. Use `--activity-type all` for mixed history or
@@ -87,7 +87,7 @@ months. A local lock serializes uploader processes using the same Garmin token d
 Writes from other machines, delayed visibility and partial failures can still
 cause inconsistent results. Check Garmin Connect before retrying.
 
-Workout uploads, scheduling and managed batch cleanup use the pinned `garminconnect` publishing adapter and its local saved-token directory. Activity sync and planning use Garmin's Personal API key in the desktop keyring. Service changes, rate limits, or expired credentials can interrupt either connection. Keep both credential stores private, along with Codex credentials.
+Workout uploads, scheduling and managed batch cleanup use the pinned `garminconnect` publishing adapter and its local saved-token directory. Activity sync and planning use Garmin's Personal API key in the ignored local file `private/garmin_personal_api_key` (mode `600`, in a mode `700` directory). Service changes, rate limits, or expired credentials can interrupt either connection. Keep both credential stores private, along with Codex credentials.
 Use `--debug` for Codex failures. It saves CLI stderr beside the workout as
 `<output>.debug.txt` instead of sending it to the terminal. Inspect it locally
 before sharing. The Codex subprocess inherits only an allowlist of runtime

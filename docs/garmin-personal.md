@@ -1,8 +1,10 @@
-# Check a Garmin Personal API key on Linux
+# Set up the Garmin Personal API key on Linux
 
-Use a logged-in desktop session with an unlocked Secret Service keyring.
-Bootstrap installs `libsecret-tools` on Debian and Ubuntu. For an existing
-installation run `sudo apt-get install libsecret-tools`.
+No extra OS package is required. The login command prompts
+for the Garmin Personal API key without echoing it, verifies the key with
+Garmin, then saves it in the ignored local file
+`private/garmin_personal_api_key`. WorkoutPlanner creates the `private/`
+directory with mode `700` and the key file with mode `600`.
 
 1. Sign in to Garmin Connect Web and follow [Garmin's Personal API key instructions](https://developer.garmin.com/gc-developer-program/personal/personal-api/).
    Choose an expiration and copy the key when Garmin displays it.
@@ -32,9 +34,9 @@ coverage required checking the original FIT file. That FIT check is now incorpor
 
 The client sends credentials directly to Garmin over HTTPS. It exchanges the
 stored key for an in-memory access token each time the check runs. Repeat
-`login` to replace the stored key after rotation. Revoke the key in Garmin
-Connect Web to disable it. The existing workout publisher uses its original
-local login.
+`login` to replace the key after rotation. Revoke the key in Garmin Connect
+Web to disable it. The existing workout publisher uses its separate local
+login.
 
 The protocol reference is [Garmin's official Python example](https://github.com/garmin/connect-personal-api-python).
 WorkoutPlanner implements just the token exchange and activity-detail GET
@@ -124,9 +126,9 @@ environment with only the pinned FIT decoder. From the repository root:
 
 Use Python 3.12 or newer with venv. Set `WORKOUTPLANNER_PYTHON` if needed.
 Omit `--skip-os` on Debian or Ubuntu to install the system dependencies,
-including the desktop keyring tool. Add `--install-codex` if you also need
-the Codex CLI for workout generation. Use the desktop session containing your
-Garmin Personal API key.
+Add `--install-codex` if you also need the Codex CLI for workout generation.
+The Personal API key file is shared by both Python environments at
+`private/garmin_personal_api_key`.
 Live publishing uses `.venv`, which contains `garminconnect`. The legacy
 reader also requires that environment and is intended for parity comparisons.
 
