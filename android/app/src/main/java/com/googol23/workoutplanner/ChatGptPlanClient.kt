@@ -6,6 +6,7 @@ import android.net.Uri
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import android.util.Log
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -57,6 +58,7 @@ object ChatGptPlanClient {
     private const val HOST_PREF = "host_id"
     private const val KEY_ALIAS = "workoutplanner_chatgpt_plan_v1"
     private const val MAX_HTTP_BYTES = 8 * 1024 * 1024
+    private const val LOG_TAG = "WorkoutPlannerAuth"
 
     fun hasCredentials(context: Context): Boolean = context.getSharedPreferences(STORE_PREFS, Context.MODE_PRIVATE).contains(TOKEN_PREF)
 
@@ -73,6 +75,8 @@ object ChatGptPlanClient {
         context: Context,
         onProgress: suspend (String) -> Unit = {},
     ): ChatGptCredential = withContext(Dispatchers.IO) {
+        var stage = "initialize"
+        Log.i(LOG_TAG, "Sign-in started")
         val preferences = context.getSharedPreferences(STORE_PREFS, Context.MODE_PRIVATE)
         val hostId = preferences.getString(HOST_PREF, null) ?: "urn:uuid:${UUID.randomUUID()}".also {
             check(preferences.edit().putString(HOST_PREF, it).commit()) { "Could not initialize this phone's ChatGPT connection." }
@@ -97,6 +101,7 @@ object ChatGptPlanClient {
         val listener = Thread {
             try {
                 callback.use { server ->
+                    Log.i(LOG_TAG, "Loopback callback listener ready on port ${server.localPort}")
                     while (!result.isCompleted) {
                         val socket = server.accept()
                         socket.use { client ->
@@ -109,6 +114,7 @@ object ChatGptPlanClient {
                             val target = pieces.getOrNull(1).orEmpty()
                             val uri = Uri.parse("http://127.0.0.1$target")
                             val validCallback = method == "GET" && uri.path == CALLBACK_PATH
+                            Log.i(LOG_TAG, "Loopback request received: method=$method path=${uri.path} matched=$validCallback")
                             val params = mutableMapOf<String, String>()
                             if (validCallback) uri.queryParameterNames.forEach { key -> params[key] = uri.getQueryParameter(key).orEmpty() }
                             val body = if (validCallback) {
@@ -144,6 +150,8 @@ object ChatGptPlanClient {
             query.forEach { (key, value) -> appendQueryParameter(key, value) }
         }.build()
         try {
+            stage = "browser authorization"
+            Log.i(LOG_TAG, "Opening system browser for authorization; registration=${if (issuedClientId == null) "new" else "existing"}")
             withContext(Dispatchers.Main) { onProgress("Waiting for ChatGPT authorization in the browser…") }
             context.startActivity(Intent(Intent.ACTION_VIEW, authUri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             val params = try {
@@ -151,6 +159,7 @@ object ChatGptPlanClient {
             } catch (_: TimeoutCancellationException) {
                 throw IllegalStateException("ChatGPT did not return to WorkoutPlanner. Keep the app open, finish authorization in the browser, then retry.")
             }
+            Log.i(LOG_TAG, "Authorization callback received: code=${!params["code"].isNullOrBlank()} state=${!params["state"].isNullOrBlank()} clientId=${!params["client_id"].isNullOrBlank()} error=${!params["error"].isNullOrBlank()}")
             require(params["state"] == state) { "ChatGPT sign-in state did not match. Try again." }
             params["error"]?.let { code ->
                 val message = if (code == "access_denied") "ChatGPT plan access was not authorized." else "ChatGPT sign-in failed ($code)."
@@ -163,18 +172,25 @@ object ChatGptPlanClient {
             check(preferences.edit().putString(CLIENT_PREF, clientId).commit()) {
                 "Could not save the ChatGPT client registration for retry."
             }
+            stage = "authorization code exchange"
+            Log.i(LOG_TAG, "Exchanging authorization code")
             withContext(Dispatchers.Main) { onProgress("Authorization returned. Exchanging the one-time code…") }
             val token = exchangeToken(mapOf(
                 "grant_type" to "authorization_code", "client_id" to clientId, "code" to code,
                 "code_verifier" to verifier, "redirect_uri" to redirectUri, "resource" to RESOURCE,
             ))
+            Log.i(LOG_TAG, "Authorization code exchange completed")
             val scopes = token.optString("scope").split(' ').filter(String::isNotBlank).toSet()
+            Log.i(LOG_TAG, "Plan usage scopes granted: direct=${"chatgpt.tokens.use.direct" in scopes} invoke=${"resource.invoke" in scopes}")
             require("chatgpt.tokens.use.direct" in scopes && "resource.invoke" in scopes) {
                 "ChatGPT sign-in succeeded, but plan usage was not authorized. Reconnect and approve plan usage."
             }
             val idToken = token.optString("id_token")
+            stage = "identity verification"
+            Log.i(LOG_TAG, "Verifying identity token")
             withContext(Dispatchers.Main) { onProgress("Verifying the ChatGPT account and granted permissions…") }
             val claims = verifyIdToken(idToken, clientId, nonce)
+            Log.i(LOG_TAG, "Identity token verified")
             val subject = claims.getString("sub")
             val email = claims.optString("email")
             if (issuedClientId != null) {
@@ -186,9 +202,12 @@ object ChatGptPlanClient {
                 email, subject, Instant.now().epochSecond + token.optLong("expires_in", 3600), scopes,
             )
             write(context, credential)
+            stage = "credential storage"
+            Log.i(LOG_TAG, "Encrypted credentials saved")
             withContext(Dispatchers.Main) { onProgress("ChatGPT connected.") }
             credential
         } catch (error: Exception) {
+            Log.e(LOG_TAG, "Sign-in failed at stage=$stage (${error.javaClass.simpleName})")
             if (error is IllegalStateException) throw error
             throw IllegalStateException(error.message ?: "ChatGPT sign-in failed or timed out.")
         } finally {
