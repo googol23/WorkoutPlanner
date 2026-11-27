@@ -89,5 +89,9 @@ app-private schema-1.0 export. The Garmin FIT Java SDK is used only to decode
 downloaded FIT files. Live FIT coverage and parity checks on the phone, model
 generation and Garmin upload remain open. A local planning preview now builds
 one compact multi-sport input and draft prompt for all saved profiles; no data
-is sent to a model yet. The mobile milestones and provider access decisions are in
+is sent until the user taps Generate. Sign in with ChatGPT stores its tokens
+encrypted with Android Keystore and can submit one streamed Responses API
+request using authorized plan usage. OpenAI eligibility for this private app is
+not yet confirmed. The response is displayed as text; plan validation and
+Garmin upload remain open. The mobile milestones and provider access decisions are in
 [`docs/android-app.md`](docs/android-app.md).

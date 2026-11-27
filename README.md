@@ -186,6 +186,8 @@ Python runner and can sync recent Garmin activity summaries plus available
 FIT-derived laps, zones and strength sets using an encrypted Personal API key.
 It can also build a compact, on-device preview combining every saved profile
 with the recent cross-sport history. The preview is not sent to an AI provider.
-Model generation and Garmin workout upload remain planned. See the [Android
-app plan](docs/android-app.md) for status, FIT coverage and account-access
-prerequisites.
+It can connect through Sign in with ChatGPT and generate a response using
+eligible ChatGPT plan usage; no API key or separate API-billing fallback is
+used. The response is currently shown as text for review, and Garmin workout
+upload remains planned. Access may be unavailable for a private app. See the
+[Android app plan](docs/android-app.md) for status and limitations.

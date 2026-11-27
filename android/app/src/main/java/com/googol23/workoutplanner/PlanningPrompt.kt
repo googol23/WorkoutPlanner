@@ -46,10 +46,29 @@ object PlanningPrompt {
         val input = JSONObject().put("schema_version", "1.0")
             .put("as_of", today.toString()).put("history_start", start.toString())
             .put("profiles", profileJson).put("recent_activities", recent)
+        val evidence = buildList {
+            if (profiles.any { it.activityType == ActivityTypes.RUNNING }) add(
+                "Running sources: R1 Esteve-Lanao et al. 2007 https://doi.org/10.1519/R-19725.1 (small trained-runner study; use easy volume as a context, not a quota); " +
+                    "R2 Soligard et al. 2016 https://doi.org/10.1136/bjsports-2016-096581 (multisport load consensus); " +
+                    "R3 Saw et al. 2016 https://doi.org/10.1136/bjsports-2015-094758 (systematic review of athlete monitoring); " +
+                    "R4 Damsted et al. 2018 https://pubmed.ncbi.nlm.nih.gov/30534459/ (limited heterogeneous running injury evidence)."
+            )
+            if (profiles.any { it.activityType == ActivityTypes.CYCLING }) add(
+                "Cycling sources: C1 Seiler et al. 2013 https://doi.org/10.1111/j.1600-0838.2011.01351.x (trained recreational cyclists; scale intervals to history); " +
+                    "C2 Stöggl & Sperlich 2014 https://doi.org/10.3389/fphys.2014.00033 (short-term multisport trial; no universal intensity distribution)."
+            )
+            if (profiles.any { it.activityType == ActivityTypes.STRENGTH }) add(
+                "Strength sources: S1 Currier et al. 2026 https://doi.org/10.1249/MSS.0000000000003897; " +
+                    "S2 Currier et al. 2023 https://pubmed.ncbi.nlm.nih.gov/37414459/; " +
+                    "S3 Grgic et al. 2022 https://doi.org/10.1016/j.jshs.2021.01.007 (failure is optional; use repeatable submaximal effort)."
+            )
+        }.joinToString("\n")
         val prompt = "Create one safe, science-informed next workout for every profile below. " +
             "Use the shared 14-day history across all activity types to account for recent load and recovery. " +
             "Respect goals, time, equipment, constraints and preferences. Avoid inventing missing metrics. " +
-            "Return rationale and one structured workout per profile; do not schedule or upload anything.\n\n" +
+            "Return rationale and one structured workout per profile; cite only relevant source IDs listed here. " +
+            "Treat the studies as bounded evidence, not personal prescriptions. Do not schedule or upload anything.\n\n" +
+            evidence + "\n\n" +
             input.toString(2)
         return input.toString(2) to prompt
     }
