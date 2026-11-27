@@ -68,7 +68,7 @@ object ProfileJson {
                 preferredExercises = stringList(value, "preferred_exercises"),
             )
             require(sport == ActivityTypes.STRENGTH ||
-                ("preferred_machines" !in value && "preferred_exercises" !in value)) {
+                (!value.has("preferred_machines") && !value.has("preferred_exercises"))) {
                 "Machine and exercise preferences are only valid for strength profiles."
             }
             validate(profile)
