@@ -23,10 +23,15 @@ The initial Android milestone provides:
 - Import and export through Android's document picker.
 - App-private profile storage. Profiles are not written to the repository or
   uploaded by this milestone.
+- Garmin Personal API key entry, AES-GCM encryption using an Android Keystore
+  key, removal, and an on-demand connection check.
+- A temporary preview of up to 20 completed activity summaries from the last
+  14 days. Summary rows stay in memory and are not yet saved as planning input.
 
-The app currently has no Garmin or OpenAI connection and does not publish
-workouts. It does not require or read the desktop Garmin tokens or Codex
-credentials.
+The preview is only a connection check. Full activity detail, FIT metrics,
+local activity-history persistence, OpenAI generation and Garmin workout
+publishing are not implemented. The app does not read the desktop Garmin tokens
+or Codex credentials.
 
 ## Integration sequence
 
@@ -39,34 +44,33 @@ credentials.
    flow for arbitrary apps. Confirm an eligible ChatGPT integration before
    promising account-based generation; the OpenAI API key route has separate
    API billing.
-2. **Add profile persistence and migration.** Provide explicit versioned
-   import/export and keep profile fields compatible with the Python runner.
-3. **Add Garmin read-only sync.** Implement the Personal API key flow, token
-   exchange, activity history window and FIT parsing in a native Android data
-   module. Store secrets with Android Keystore-backed encryption. Keep a
-   visible sync status and allow credentials and local activity history to be
-   removed.
-4. **Add prompt construction and generation.** Port the compact multi-sport
+2. **Finish Garmin read-only sync.** Fetch full activity summaries and details
+   for the selected window, download and parse original FIT records, preserve
+   the established activity JSON contract, and save it in app-private storage.
+   The current connection check only previews summaries.
+3. **Add prompt construction and generation.** Port the compact multi-sport
    input rules and schema validation. Present the exact activity data to be
    sent for generation. Keep model credentials on-device and use only an
    officially supported authorization path.
-5. **Add workout review.** Show the rationale and one plan for every configured
+4. **Add workout review.** Show the rationale and one plan for every configured
    profile. Let the user select one or several plans before upload; generation
    alone must not publish or schedule anything.
-6. **Add publishing.** Use Garmin's approved Training API if available. Keep
+5. **Add publishing.** Use Garmin's approved Training API if available. Keep
    publishing separate from activity reading, verify returned workout IDs and
    make retries idempotent. Scheduling remains a separate explicit action.
-7. **Check parity and recovery.** Compare Android output against the local
+6. **Check parity and recovery.** Compare Android output against the local
    Python workflow using shared fixtures, then test network loss, expired
    credentials, partial uploads and repeated runs.
 
 ## Security model
 
 The intended design has no WorkoutPlanner backend: profile data, activity
-history, and credentials stay in app-private storage on the phone. Credentials
-must be encrypted using Android Keystore-backed keys, excluded from backup, and
-removable from the app. Direct provider requests still send the relevant data
-to Garmin or OpenAI. The app must show that data boundary before generation.
+history, and credentials stay in app-private storage on the phone. The Garmin
+key is AES-GCM encrypted with a key held by Android Keystore, excluded from
+backup, and removable from the app. The access token is held only for the
+request and not persisted. Direct provider requests still send the relevant
+data to Garmin or OpenAI. The app must show that data boundary before
+generation.
 
 The profile JSON is user data, not a credential. The first milestone stores it
 in app-private storage and supports document-picker export/import. Exported

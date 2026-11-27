@@ -33,10 +33,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,6 +55,7 @@ private fun WorkoutPlannerApp() {
     var profiles by remember { mutableStateOf(emptyList<AthleteProfile>()) }
     var selectedName by rememberSaveable { mutableStateOf("") }
     var message by rememberSaveable { mutableStateOf("Profiles are stored on this phone.") }
+    var screen by rememberSaveable { mutableStateOf("profiles") }
     var draft by remember { mutableStateOf(AthleteProfile("running", ActivityTypes.RUNNING, "", "")) }
     var sportMenuOpen by remember { mutableStateOf(false) }
     var profileMenuOpen by remember { mutableStateOf(false) }
@@ -123,8 +126,16 @@ private fun WorkoutPlannerApp() {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("WorkoutPlanner", style = MaterialTheme.typography.headlineMedium)
-                Text("Manage your local athlete profiles", style = MaterialTheme.typography.titleMedium)
-                Text(message, style = MaterialTheme.typography.bodyMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { screen = "profiles" }) { Text("Profiles") }
+                    OutlinedButton(onClick = { screen = "garmin" }) { Text("Garmin") }
+                }
+
+                if (screen == "garmin") {
+                    GarminConnectionScreen()
+                } else {
+                    Text("Manage your local athlete profiles", style = MaterialTheme.typography.titleMedium)
+                    Text(message, style = MaterialTheme.typography.bodyMedium)
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -238,6 +249,7 @@ private fun WorkoutPlannerApp() {
                     }
                 }
                 Spacer(Modifier.height(8.dp))
+                }
             }
         }
     }
@@ -257,3 +269,102 @@ private fun ProfileField(label: String, value: String, onValueChange: (String) -
 
 private fun commaValues(value: String): List<String> =
     value.split(',').map(String::trim).filter(String::isNotEmpty).distinct()
+
+@Composable
+private fun GarminConnectionScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val secretStore = remember { GarminSecretStore(context) }
+    var keyInput by rememberSaveable { mutableStateOf("") }
+    var hasKey by remember { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(false) }
+    var status by rememberSaveable { mutableStateOf("Garmin Personal API key is stored only on this phone.") }
+    var activities by remember { mutableStateOf(emptyList<GarminActivityPreview>()) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        hasKey = withContext(Dispatchers.IO) { secretStore.hasKey() }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Garmin Personal API", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Enter the Personal API key from Garmin Connect. WorkoutPlanner encrypts it with Android Keystore. " +
+                "This check reads at most 20 activity summaries from the last 14 days; it does not upload workouts.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        OutlinedTextField(
+            value = keyInput,
+            onValueChange = { keyInput = it },
+            label = { Text("Garmin Personal API key") },
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            enabled = !loading,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                val candidate = keyInput.trim()
+                scope.launch {
+                    loading = true
+                    runCatching { withContext(Dispatchers.IO) { secretStore.save(candidate) } }
+                        .onSuccess {
+                            keyInput = ""
+                            hasKey = true
+                            status = "Encrypted Garmin key saved on this phone."
+                        }
+                        .onFailure { status = it.message ?: "Could not save the key." }
+                    loading = false
+                }
+            }, enabled = !loading && keyInput.isNotBlank()) { Text("Save key") }
+            OutlinedButton(onClick = {
+                scope.launch {
+                    loading = true
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            val key = secretStore.read()
+                            val today = LocalDate.now()
+                            GarminPersonalClient.fetchRecentPreview(key, today)
+                        }
+                    }.onSuccess { rows ->
+                        activities = rows
+                        status = "Garmin connection succeeded. Loaded ${rows.size} recent completed activity summary(s)."
+                    }.onFailure { status = it.message ?: "Garmin connection failed." }
+                    loading = false
+                }
+            }, enabled = !loading && hasKey) {
+                Text(if (loading) "Connecting…" else "Check connection")
+            }
+        }
+        if (hasKey) {
+            OutlinedButton(onClick = {
+                scope.launch {
+                    loading = true
+                    runCatching { withContext(Dispatchers.IO) { secretStore.clear() } }
+                        .onSuccess {
+                            hasKey = false
+                            activities = emptyList()
+                            status = "Garmin key removed from this phone."
+                        }
+                        .onFailure { status = it.message ?: "Could not remove the key." }
+                    loading = false
+                }
+            }, enabled = !loading) { Text("Remove saved key") }
+        }
+        Text(status, style = MaterialTheme.typography.bodyMedium)
+        if (activities.isNotEmpty()) {
+            Text("Recent preview", style = MaterialTheme.typography.titleSmall)
+            activities.forEach { activity ->
+                val duration = activity.durationSeconds?.let { seconds ->
+                    val minutes = seconds / 60
+                    if (minutes >= 60) " · ${minutes / 60}h ${minutes % 60}m" else " · ${minutes}m"
+                }.orEmpty()
+                val distance = activity.distanceMeters?.let { " · ${"%.1f".format(it / 1000.0)} km" }.orEmpty()
+                Text("${activity.localDate} · ${activity.activityType}: ${activity.name}$duration$distance")
+            }
+            Text(
+                "This is a temporary summary preview. Detailed metrics and FIT records are not synced yet.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}

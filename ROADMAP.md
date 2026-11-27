@@ -80,9 +80,10 @@ and was recognized as already published on retry.
 
 ## Android application
 
-The standalone native app has been started under `android/` while the Python
-local runner remains available and unchanged. The first app milestone provides
-on-device profile editing and import/export of the named profile JSON consumed
-by the desktop planner. It does not yet sync Garmin data, call a model, or upload
-workouts. The remaining mobile milestones and provider access decisions are in
+The standalone native app is under `android/`; the Python local runner remains
+available and unchanged. Profile editing and profile JSON import/export have
+been tested on an Android phone. The app can store the Garmin Personal API key
+encrypted with Android Keystore and preview recent activity summaries. Full
+activity history and FIT metric sync, model generation and Garmin upload remain
+open. The mobile milestones and provider access decisions are in
 [`docs/android-app.md`](docs/android-app.md).

@@ -180,9 +180,10 @@ Activity downloads use Garmin's Personal API client in WorkoutPlanner. The garmi
 
 ## Android app
 
-The Android app is a separate Kotlin project under [`android/`](android/). Its
-first milestone edits athlete profiles and imports/exports the same
-`athlete_profiles.json` format used by the local Python runner. It does not
-replace or modify the local pipeline. See the [Android app plan](docs/android-app.md)
-for the planned Garmin sync, workout generation and upload work, including
-their account-access prerequisites.
+The Android app is a separate Kotlin project under [`android/`](android/). It
+edits and exchanges the same `athlete_profiles.json` format used by the local
+Python runner and can test Garmin Personal API access with an encrypted key and
+preview recent activity summaries. It does not replace or modify the local
+pipeline. Full activity sync, workout generation and upload remain planned. See
+the [Android app plan](docs/android-app.md) for status and account-access
+prerequisites.
