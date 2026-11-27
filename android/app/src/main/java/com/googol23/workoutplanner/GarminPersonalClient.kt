@@ -18,17 +18,21 @@ data class GarminActivityPreview(
     val localDate: String,
     val durationSeconds: Long?,
     val distanceMeters: Double?,
+    val fitDetails: String,
 )
 
 data class GarminActivitySyncResult(
     val activities: List<GarminActivityPreview>,
     val export: JSONObject,
+    val fitEnrichedActivityCount: Int,
 )
 
 object GarminPersonalClient {
     private const val HOST = "personal.connectapi.garmin.com"
     private const val TOKEN_PATH = "/personalapitoken-service/personal-api/personal-api-key/token"
     private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+    private const val MAX_FIT_ARCHIVE_BYTES = 34 * 1024 * 1024
+    private const val MAX_SYNC_FIT_BYTES = 64 * 1024 * 1024
     private const val PAGE_SIZE = 20
     private const val MAX_SYNC_ACTIVITIES = 100
     private val privateField = Regex(
@@ -82,6 +86,7 @@ object GarminPersonalClient {
             offset += page.size
         }
 
+        var fitBytesDownloaded = 0
         val exported = listings.map { listing ->
             val id = listing.get("activityId").toString()
             val detailBytes = request("GET", "/activity-service/activity/$id", "Bearer $token", "application/json")
@@ -93,17 +98,48 @@ object GarminPersonalClient {
             if (detail.opt("activityId")?.toString() != id || detail.optBoolean("inProgress", false)) {
                 throw IllegalStateException("Garmin returned an unexpected or incomplete activity.")
             }
-            makeExportRecord(id, listing, detail)
+            val activityType = detail.optJSONObject("activityTypeDTO")?.optString("typeKey")
+                ?: detail.optJSONObject("activityType")?.optString("typeKey")
+                ?: listing.optJSONObject("activityTypeDTO")?.optString("typeKey")
+                ?: listing.optJSONObject("activityType")?.optString("typeKey")
+                ?: "unknown"
+            val remainingFitBudget = MAX_SYNC_FIT_BYTES - fitBytesDownloaded
+            val fitArchive = if (remainingFitBudget > 0) {
+                request(
+                    method = "GET",
+                    path = "/download-service/files/activity/$id",
+                    authorization = "Bearer $token",
+                    accept = "application/zip, application/x-zip-compressed, application/octet-stream",
+                    maxBytes = minOf(MAX_FIT_ARCHIVE_BYTES, remainingFitBudget),
+                    optionalNotFound = true,
+                ).also { fitBytesDownloaded += it.size }.takeIf { it.isNotEmpty() }
+            } else {
+                null
+            }
+            val fitSections = fitArchive?.let { archive ->
+                runCatching { GarminFitParser.decodeArchive(archive, activityType) }.getOrNull()
+            }
+            makeExportRecord(id, listing, detail, activityType, fitSections)
         }
         val export = JSONObject()
             .put("schema_version", "1.0")
             .put("exported_at", DateTimeFormatter.ISO_INSTANT.format(Instant.now()))
             .put("activities", JSONArray(exported))
         val previews = exported.map(::previewFromExport)
-        return GarminActivitySyncResult(previews, export)
+        val fitCount = exported.count { record ->
+            record.optJSONObject("splits") != null || record.optJSONArray("heart_rate_zones") != null ||
+                record.optJSONArray("power_zones") != null || record.optJSONObject("exercise_sets") != null
+        }
+        return GarminActivitySyncResult(previews, export, fitCount)
     }
 
-    private fun makeExportRecord(id: String, listing: JSONObject, detail: JSONObject): JSONObject {
+    private fun makeExportRecord(
+        id: String,
+        listing: JSONObject,
+        detail: JSONObject,
+        activityType: String,
+        fit: GarminFitSections?,
+    ): JSONObject {
         val start = detail.optString("startTimeLocal").ifBlank {
             detail.optJSONObject("summaryDTO")?.optString("startTimeLocal")?.ifBlank {
                 listing.optString("startTimeLocal").ifBlank { detail.optString("startTimeGMT") }
@@ -111,25 +147,32 @@ object GarminPersonalClient {
         }
         val name = detail.optString("activityName").takeIf(String::isNotBlank)
             ?: listing.optString("activityName").takeIf(String::isNotBlank)
-        val missing = JSONArray(listOf(
-            "time_series", "splits", "workout_steps", "heart_rate_zones",
-            "power_zones", "weather", "exercise_sets",
-        ))
+        val missing = JSONArray()
+        missing.put("time_series")
+        missing.put("workout_steps")
+        missing.put("weather")
+        if (fit?.exerciseSets == null) missing.put("exercise_sets")
+        if (fit == null) missing.put("original_fit")
+        if (fit?.splits == null) missing.put("splits")
+        if (fit?.heartRateZones == null) missing.put("heart_rate_zones")
+        if (fit?.powerZones == null) missing.put("power_zones")
+        if (activityType == ActivityTypes.STRENGTH && fit?.exerciseSets == null) missing.put("exercise_sets")
         val exportDate: Any = start.takeIf(String::isNotBlank) ?: JSONObject.NULL
-        return JSONObject()
+        val record = JSONObject()
             .put("activity_id", id)
             .put("activity_name", name ?: JSONObject.NULL)
             .put("activity_date", exportDate)
             .put("summary", safeJson(detail) as JSONObject)
             .put("time_series", JSONObject.NULL)
-            .put("splits", JSONObject.NULL)
+            .put("splits", fit?.splits ?: JSONObject.NULL)
             .put("workout_steps", JSONObject.NULL)
-            .put("heart_rate_zones", JSONObject.NULL)
-            .put("power_zones", JSONObject.NULL)
+            .put("heart_rate_zones", fit?.heartRateZones ?: JSONObject.NULL)
+            .put("power_zones", fit?.powerZones ?: JSONObject.NULL)
+            .put("exercise_sets", fit?.exerciseSets ?: JSONObject.NULL)
             .put("weather", JSONObject.NULL)
-            .put("exercise_sets", JSONObject.NULL)
             .put("subjective_feedback", JSONObject.NULL)
             .put("unavailable_fields", missing)
+        return record
     }
 
     private fun safeJson(value: Any?): Any? = when (value) {
@@ -153,6 +196,11 @@ object GarminPersonalClient {
             ?: "unknown"
         val summaryDto = summary.optJSONObject("summaryDTO")
         val date = record.optString("activity_date").take(10).ifBlank { "Date unavailable" }
+        val fitNotes = mutableListOf<String>()
+        record.optJSONObject("splits")?.optJSONArray("lapDTOs")?.length()?.takeIf { it > 0 }?.let { fitNotes += "$it laps" }
+        record.optJSONArray("heart_rate_zones")?.length()?.takeIf { it > 0 }?.let { fitNotes += "$it HR zones" }
+        record.optJSONArray("power_zones")?.length()?.takeIf { it > 0 }?.let { fitNotes += "$it power zones" }
+        record.optJSONObject("exercise_sets")?.optJSONArray("exerciseSets")?.length()?.takeIf { it > 0 }?.let { fitNotes += "$it sets" }
         return GarminActivityPreview(
             activityId = record.getString("activity_id"),
             name = record.optString("activity_name").takeIf(String::isNotBlank) ?: "Garmin activity",
@@ -160,6 +208,7 @@ object GarminPersonalClient {
             localDate = date,
             durationSeconds = summary.numberAsLong("duration") ?: summaryDto?.numberAsLong("duration"),
             distanceMeters = summary.numberAsDouble("distance") ?: summaryDto?.numberAsDouble("distance"),
+            fitDetails = fitNotes.joinToString(", "),
         )
     }
 
@@ -175,7 +224,14 @@ object GarminPersonalClient {
         return token
     }
 
-    private fun request(method: String, path: String, authorization: String, accept: String): ByteArray {
+    private fun request(
+        method: String,
+        path: String,
+        authorization: String,
+        accept: String,
+        maxBytes: Int = MAX_RESPONSE_BYTES,
+        optionalNotFound: Boolean = false,
+    ): ByteArray {
         val connection = URL("https://$HOST$path").openConnection() as HttpsURLConnection
         try {
             connection.requestMethod = method
@@ -184,6 +240,9 @@ object GarminPersonalClient {
             connection.setRequestProperty("Authorization", authorization)
             connection.setRequestProperty("Accept", accept)
             val status = connection.responseCode
+            if (optionalNotFound && status in listOf(HttpURLConnection.HTTP_NO_CONTENT, HttpURLConnection.HTTP_NOT_FOUND)) {
+                return ByteArray(0)
+            }
             if (status == HttpURLConnection.HTTP_UNAUTHORIZED || status == HttpURLConnection.HTTP_FORBIDDEN) {
                 throw IllegalStateException("Garmin denied access. Check that the Personal API key is valid and has not expired.")
             }
@@ -196,8 +255,8 @@ object GarminPersonalClient {
                     val count = input.read(buffer)
                     if (count < 0) break
                     total += count
-                    if (total > MAX_RESPONSE_BYTES) {
-                        throw IllegalStateException("Garmin response exceeded the 2 MB preview limit.")
+                    if (total > maxBytes) {
+                        throw IllegalStateException("Garmin response exceeded the ${maxBytes / (1024 * 1024)} MB size limit.")
                     }
                     output.write(buffer, 0, count)
                 }

@@ -28,12 +28,21 @@ The initial Android milestone provides:
 - Read-only sync of completed activity summaries and details over the last 14
   days, paginated with a 100-activity safety limit. The JSON is saved in
   app-private storage using the existing schema version 1.0.
+- Download and decode the original FIT activity file when Garmin makes it
+  available. The sync extracts lap summaries, time in heart-rate and power
+  zones, and recorded strength set data. Unsupported or unavailable FIT data
+  stays explicitly listed under `unavailable_fields`.
 
-The sync does not yet download or parse original FIT files. Laps, zones,
-time-series samples, weather, workout steps and recorded strength sets are
-marked unavailable. OpenAI generation and Garmin workout publishing are not
-implemented. The app does not read the desktop Garmin tokens or Codex
-credentials.
+Time-series samples, weather and workout steps are not yet decoded. FIT
+coverage depends on Garmin providing a downloadable file for the activity;
+one missing or unsupported FIT file does not prevent summary sync. OpenAI
+generation and Garmin workout publishing are not implemented. The app does
+not read the desktop Garmin tokens or Codex credentials.
+
+Android uses Garmin's official
+[`fit-java-sdk`](https://github.com/garmin/fit-java-sdk), pinned to
+`com.garmin:fit:21.222.0`. Garmin distributes this library under the
+[FIT Protocol License](https://github.com/garmin/fit-java-sdk/blob/main/LICENSE.txt).
 
 ## Integration sequence
 
@@ -46,10 +55,11 @@ credentials.
    flow for arbitrary apps. Confirm an eligible ChatGPT integration before
    promising account-based generation; the OpenAI API key route has separate
    API billing.
-2. **Finish Garmin read-only sync.** Download and parse original FIT records,
-   preserve the established activity JSON contract for laps, zones and strength
-   sets, and support clearing the app-private history. Summary/detail sync is
-   implemented; FIT coverage remains.
+2. **Finish Garmin read-only sync.** Compare FIT-derived Android output with
+   the desktop reader for running, cycling and strength fixtures, then add
+   time-series and other useful fields only where Garmin provides a stable
+   source. Summary/detail and FIT lap/zone/set extraction are implemented;
+   live parity and coverage remain to be checked on the phone.
 3. **Add prompt construction and generation.** Port the compact multi-sport
    input rules and schema validation. Present the exact activity data to be
    sent for generation. Keep model credentials on-device and use only an

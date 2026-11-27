@@ -293,8 +293,9 @@ private fun GarminConnectionScreen() {
         Text("Garmin Personal API", style = MaterialTheme.typography.titleMedium)
         Text(
             "Enter the Personal API key from Garmin Connect. WorkoutPlanner encrypts it with Android Keystore. " +
-                "Sync reads completed activities from the last 14 days and saves their summary details locally. " +
-                "FIT laps, zones and strength sets are not included yet; no workouts are uploaded.",
+                "Sync reads completed activities from the last 14 days, downloads available FIT files, and saves " +
+                "summary metrics, laps, zones and strength sets locally. Garmin may not provide every FIT file. " +
+                "No workouts are uploaded.",
             style = MaterialTheme.typography.bodyMedium,
         )
         OutlinedTextField(
@@ -334,7 +335,8 @@ private fun GarminConnectionScreen() {
                     }.onSuccess { result ->
                         activities = result.activities
                         syncedCount = result.activities.size
-                        status = "Synced ${result.activities.size} completed activity record(s) to app-private storage."
+                        status = "Synced ${result.activities.size} completed activity record(s); FIT details decoded for " +
+                            "${result.fitEnrichedActivityCount} record(s). Saved to app-private storage."
                     }.onFailure { status = it.message ?: "Garmin connection failed." }
                     loading = false
                 }
@@ -381,10 +383,12 @@ private fun GarminConnectionScreen() {
                     if (minutes >= 60) " · ${minutes / 60}h ${minutes % 60}m" else " · ${minutes}m"
                 }.orEmpty()
                 val distance = activity.distanceMeters?.let { " · ${"%.1f".format(it / 1000.0)} km" }.orEmpty()
-                Text("${activity.localDate} · ${activity.activityType}: ${activity.name}$duration$distance")
+                val fitDetails = activity.fitDetails.takeIf(String::isNotBlank)?.let { " · FIT: $it" }.orEmpty()
+                Text("${activity.localDate} · ${activity.activityType}: ${activity.name}$duration$distance$fitDetails")
             }
             Text(
-                "The local JSON preserves Garmin activity summaries. FIT-derived laps, zones and exercise sets are not synced yet.",
+                "The local JSON keeps the summary and available FIT-derived laps, zones and strength exercise sets. " +
+                    "FIT coverage depends on Garmin availability; unavailable fields stay marked in the export.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
