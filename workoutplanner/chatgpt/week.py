@@ -11,7 +11,9 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 from workoutplanner.chatgpt.generate import run_codex
-from workoutplanner.chatgpt.history import activity_date, activity_type_key, calendar_day, summarize_activity
+from workoutplanner.chatgpt.history import (
+    SPORT_TYPE_KEYS, activity_date, activity_type_key, calendar_day, summarize_activity,
+)
 from workoutplanner.chatgpt.prompt import MAX_PROMPT_BYTES, SKILL_DIR, SPORTS, load_skill_instructions, validate_existing_plan
 from workoutplanner.chatgpt.strength_catalog import select_catalog
 from workoutplanner.garmin.encoding import build_workout
@@ -47,15 +49,16 @@ def build_week_prompt(export, profiles, today, lookback_days):
     recent.sort(key=activity_date, reverse=True)
     counts = Counter(activity_type_key(activity) or "unknown" for activity in recent)
 
-    # Reserve space for the newest session of each reported type before adding depth.
-    first_by_type = {}
+    # Reserve space for the newest session of each profiled sport first.
+    first_by_sport = {}
     additional = []
     for activity in recent:
-        key = activity_type_key(activity) or "unknown"
-        if key in first_by_type:
+        key = activity_type_key(activity)
+        sport = next((target for target in sports if key in SPORT_TYPE_KEYS[target]), None)
+        if sport is None or sport in first_by_sport:
             additional.append(activity)
         else:
-            first_by_type[key] = activity
+            first_by_sport[sport] = activity
 
     history = {
         "start_date": first_day.isoformat(),
@@ -105,15 +108,15 @@ that profile's name. Avoid scheduling dates unless the athlete requests them."""
         return prefix + json.dumps(data, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
 
     sessions = history["sessions"]
-    for number, activity in enumerate(first_by_type.values(), start=1):
+    for number, activity in enumerate(first_by_sport.values(), start=1):
         summary = summarize_activity(activity)
         sessions.append({key: summary[key] for key in (
             "activity_type", "activity_date", "summary", "subjective_feedback",
         ) if key in summary} | {"session": number})
     if len(render().encode("utf-8")) > MAX_PROMPT_BYTES:
-        raise ValueError("Prompt budget cannot fit the newest session of each type; shorten profile notes or history")
+        raise ValueError("Prompt budget cannot fit the newest session of each profiled sport; shorten profile notes or reduce the strength machine preferences")
 
-    for index, activity in enumerate(first_by_type.values()):
+    for index, activity in enumerate(first_by_sport.values()):
         baseline = sessions[index]
         sessions[index] = {**summarize_activity(activity), "session": index + 1}
         if len(render().encode("utf-8")) > MAX_PROMPT_BYTES:

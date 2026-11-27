@@ -150,9 +150,9 @@ python -m workoutplanner.chatgpt.week --activities private/recent_activities.jso
 
 Both ends of the 14-day lookback are included. The next-workout horizon is
 today through six days ahead. Use `--lookback-days` to change the analysis
-window and request a matching export. The prompt includes the latest session
-of each recorded activity type in the window, then adds older sessions as
-space allows. The export may have gaps and raw chart samples stay local.
+window and request a matching export. The prompt reserves the latest session for each profiled sport, then adds
+other recent sessions as space allows. Counts still report all activity types
+in the window. The export may have gaps and raw chart samples stay local.
 
 The planner uses one Codex request with a shared history and separate sport
 goals. The resulting directory under `private/weekly/` contains one Garmin
