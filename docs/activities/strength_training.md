@@ -1,7 +1,7 @@
 # Gym strength training
 
 Use `strength_training` as the planning target. The
-[subskill](../../skills/workout-planner/subskills/strength_training.md) uses
+[subskill](../../skills/workout-planner/subskills/strength_training/SKILL.md) uses
 the [strength research register](../../skills/workout-planner/references/strength_training-evidence.md)
 to generate or adjust a structured gym session.
 

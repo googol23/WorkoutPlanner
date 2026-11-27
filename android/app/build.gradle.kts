@@ -8,6 +8,12 @@ android {
     namespace = "com.googol23.workoutplanner"
     compileSdk = 35
 
+    sourceSets {
+        getByName("main") {
+            assets.srcDir("../../skills/workout-planner")
+        }
+    }
+
     defaultConfig {
         applicationId = "com.googol23.workoutplanner"
         minSdk = 26

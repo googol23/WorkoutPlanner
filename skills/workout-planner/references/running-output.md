@@ -1,34 +1,15 @@
-# Running workout output
+# Running workout JSON output contract
 
-Return the rationale separately. In the workout JSON use exactly these
-top-level fields:
+Return exactly one standalone JSON object with these top-level fields: `schema_version`, `sport`, `timezone`, `units`, and `workouts`. Do not place rationale in the JSON.
 
-- `schema_version` is `"1.0"`.
-- `sport` is `"running"`.
-- `timezone` is a known IANA zone. If unknown, use `"UTC"` for an unscheduled
-  plan and state the assumption in the rationale.
-- `units` is `{"duration":"seconds","pace":"seconds_per_km","heart_rate":"bpm"}`.
-- `workouts` is a nonempty list. Each workout needs a unique `name`, positive
-  integer `week` (use 1 for a standalone workout), `total_duration_seconds`,
-  and nonempty `steps`. Optional fields are `description` and
-  `scheduled_date` in YYYY-MM-DD format. Include a date only when requested
-  and known. Name revised workouts distinctly if the original might already
-  exist in Garmin because the uploader skips an existing name.
+- `schema_version`: `"1.0"`; `sport`: `"running"`.
+- `timezone`: known IANA time zone. If unknown, use `"UTC"` for an unscheduled plan and state this assumption in the rationale.
+- `units`: exactly `{"duration":"seconds","pace":"seconds_per_km","heart_rate":"bpm"}`.
+- `workouts`: nonempty list. Each workout needs a unique nonempty `name`, positive integer `week` (use 1 for a single next workout), positive `total_duration_seconds`, and nonempty `steps`. Optional fields are `description` and `scheduled_date` (`YYYY-MM-DD`, only when requested and known). Use a distinct name for a revised workout if Garmin may already contain the previous name.
 
-Timed steps use a `type` of `warmup`, `run`, `interval`, `recovery`, or
-`cooldown`, and positive `duration_seconds`. Steps can include a nonempty
-`description` and a `target` using one of the following forms:
+Timed step types are `warmup`, `run`, `interval`, `recovery`, and `cooldown`; each has positive `duration_seconds`. Optional `description` must be nonempty text. Omit a target when unsupported; otherwise use exactly one:
+- `{"type":"none"}`
+- `{"type":"pace","fast_seconds_per_km":360,"slow_seconds_per_km":400}` (example syntax only; fast must be <= slow)
+- `{"type":"heart_rate","min_bpm":125,"max_bpm":140}` (example syntax only; whole BPM from 1 to 250 and min <= max)
 
-- `{"type":"none"}` or omit the target for an untargeted step.
-- `{"type":"pace","fast_seconds_per_km":360,"slow_seconds_per_km":400}`, with
-  positive values and fast less than or equal to slow.
-- `{"type":"heart_rate","min_bpm":125,"max_bpm":140}`, with increasing whole
-  numbers from 1 to 250. The pace and heart-rate numbers above illustrate
-  syntax and are not athlete targets.
-
-Repeat steps contain only `type: "repeat"`, an integer `count` from 2 to 100,
-and nonempty `steps`. Avoid unnecessary nesting. Add the timed step durations
-and multiply each repeat group by its count to get the declared total.
-
-Ask the athlete to save the JSON as `next_workout.json` and verify it with
-`python upload_workouts.py next_workout.json --dry-run`.
+A repeat step contains only `type: "repeat"`, integer `count` (2–100), and nonempty `steps`; avoid unnecessary nesting. The workout total must equal all timed steps plus each repeat group's expanded duration. Use no numeric targets unless supported by athlete-specific data.

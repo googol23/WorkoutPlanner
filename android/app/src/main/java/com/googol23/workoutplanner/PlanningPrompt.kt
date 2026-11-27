@@ -1,12 +1,13 @@
 package com.googol23.workoutplanner
 
+import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 
 /** Builds a compact, local-only planning input and review prompt. */
 object PlanningPrompt {
-    fun build(profiles: List<AthleteProfile>, export: JSONObject?, today: LocalDate = LocalDate.now()): Pair<String, String> {
+    fun build(context: Context, profiles: List<AthleteProfile>, export: JSONObject?, today: LocalDate = LocalDate.now()): Pair<String, String> {
         require(profiles.isNotEmpty()) { "Save at least one athlete profile first." }
         val start = today.minusDays(13)
         val activities = export?.optJSONArray("activities") ?: JSONArray()
@@ -46,30 +47,34 @@ object PlanningPrompt {
         val input = JSONObject().put("schema_version", "1.0")
             .put("as_of", today.toString()).put("history_start", start.toString())
             .put("profiles", profileJson).put("recent_activities", recent)
-        val evidence = buildList {
-            if (profiles.any { it.activityType == ActivityTypes.RUNNING }) add(
-                "Running sources: R1 Esteve-Lanao et al. 2007 https://doi.org/10.1519/R-19725.1 (small trained-runner study; use easy volume as a context, not a quota); " +
-                    "R2 Soligard et al. 2016 https://doi.org/10.1136/bjsports-2016-096581 (multisport load consensus); " +
-                    "R3 Saw et al. 2016 https://doi.org/10.1136/bjsports-2015-094758 (systematic review of athlete monitoring); " +
-                    "R4 Damsted et al. 2018 https://pubmed.ncbi.nlm.nih.gov/30534459/ (limited heterogeneous running injury evidence)."
-            )
-            if (profiles.any { it.activityType == ActivityTypes.CYCLING }) add(
-                "Cycling sources: C1 Seiler et al. 2013 https://doi.org/10.1111/j.1600-0838.2011.01351.x (trained recreational cyclists; scale intervals to history); " +
-                    "C2 Stöggl & Sperlich 2014 https://doi.org/10.3389/fphys.2014.00033 (short-term multisport trial; no universal intensity distribution)."
-            )
-            if (profiles.any { it.activityType == ActivityTypes.STRENGTH }) add(
-                "Strength sources: S1 Currier et al. 2026 https://doi.org/10.1249/MSS.0000000000003897; " +
-                    "S2 Currier et al. 2023 https://pubmed.ncbi.nlm.nih.gov/37414459/; " +
-                    "S3 Grgic et al. 2022 https://doi.org/10.1016/j.jshs.2021.01.007 (failure is optional; use repeatable submaximal effort)."
-            )
-        }.joinToString("\n")
-        val prompt = "Create one safe, science-informed next workout for every profile below. " +
-            "Use the shared 14-day history across all activity types to account for recent load and recovery. " +
-            "Respect goals, time, equipment, constraints and preferences. Avoid inventing missing metrics. " +
-            "Return rationale and one structured workout per profile; cite only relevant source IDs listed here. " +
-            "Treat the studies as bounded evidence, not personal prescriptions. Do not schedule or upload anything.\n\n" +
-            evidence + "\n\n" +
-            input.toString(2)
+        val sports = profiles.map { it.activityType }.distinct()
+        val outputReferences = mapOf(
+            ActivityTypes.RUNNING to "references/running-output.md",
+            ActivityTypes.CYCLING to "references/cycling-output.md",
+            ActivityTypes.STRENGTH to "references/strength_training-output.md",
+        )
+        val skillPaths = buildList {
+            add("SKILL.md")
+            sports.forEach { sport ->
+                require(outputReferences.containsKey(sport)) { "Unsupported activity type: $sport" }
+                add("subskills/$sport/SKILL.md")
+                add("references/${sport}-evidence.md")
+                add(outputReferences.getValue(sport))
+            }
+        }
+        val skillText = skillPaths.joinToString("\\n\\n") { path ->
+            runCatching {
+                context.assets.open(path).bufferedReader(Charsets.UTF_8).use { it.readText() }
+            }.getOrElse { error ->
+                throw IllegalStateException("WorkoutPlanner skill file is missing: $path", error)
+            }
+        }
+        val prompt = "Follow the WorkoutPlanner coordinator and each profile's activity skill below. " +
+            "Use the shared 14-day history across all activity types to judge load and recovery, then generate one next-session option per profile for the coming seven-day planning window. " +
+            "The athlete may choose none or one option; do not assume every option will be performed. Respect each profile's goals, time, equipment, constraints and preferences. " +
+            "Do not invent missing metrics. Treat study findings as bounded evidence, cite relevant source IDs and links in the rationale, and follow each exact JSON output contract. " +
+            "Return rationale separately from a JSON workout bundle with priority and one plan (or null if deferred) per profile. Do not schedule or upload anything.\\n\\n" +
+            skillText + "\\n\\n# Input data\\n" + input.toString(2)
         return input.toString(2) to prompt
     }
 }

@@ -5,7 +5,7 @@ profile with a running goal. The exporter matches exact Garmin activity keys,
 so select another key explicitly to export a running subtype. The prompt can
 use mixed history and prioritizes recognized running types.
 
-The [running subskill](../../skills/workout-planner/subskills/running.md) uses
+The [running subskill](../../skills/workout-planner/subskills/running/SKILL.md) uses
 the [evidence register](../../skills/workout-planner/references/running-evidence.md)
 to generate a next session or adjust a named one. Recent duration, distance,
 pace, heart rate, splits and athlete feedback help guide selection when

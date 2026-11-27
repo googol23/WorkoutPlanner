@@ -278,7 +278,7 @@ private fun PlanningPreviewScreen(profiles: List<AthleteProfile>) {
                 loading = true
                 runCatching {
                     withContext(Dispatchers.IO) {
-                        val built = PlanningPrompt.build(profiles, activityStore.load())
+                        val built = PlanningPrompt.build(context, profiles, activityStore.load())
                         built
                     }
                 }.onSuccess { (json, draftPrompt) ->

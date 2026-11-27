@@ -68,8 +68,8 @@ save the returned workout object by itself before calling the uploader.
 | Sport | Plan reference | Conversion |
 | --- | --- | --- |
 | Running | [Output contract](../skills/workout-planner/references/running-output.md) and [sample plan](../running_plan.json) | Timed steps and repeats with optional pace or heart-rate targets |
-| Cycling | [Cycling subskill](../skills/workout-planner/subskills/cycling.md) | Timed steps with effort cues and optional watt ranges |
-| Strength | [Strength subskill](../skills/workout-planner/subskills/strength_training.md) | Exact Garmin exercise names, rep targets, between-set rests and optional kg or lb loads |
+| Cycling | [Cycling subskill](../skills/workout-planner/subskills/cycling/SKILL.md) | Timed steps with effort cues and optional watt ranges |
+| Strength | [Strength subskill](../skills/workout-planner/subskills/strength_training/SKILL.md) | Exact Garmin exercise names, rep targets, between-set rests and optional kg or lb loads |
 
 Strength uses the lower end of a rep range as the device target. The rest of
 the range and effort cue are stored in notes. Warmup is a workout note.

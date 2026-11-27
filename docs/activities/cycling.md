@@ -11,7 +11,7 @@ rides and uses other sports as recovery context. Power, cadence and zone data
 depend on the recording. Use effort cues when no defensible watt target is
 available.
 
-The [cycling subskill](../../skills/workout-planner/subskills/cycling.md) and
+The [cycling subskill](../../skills/workout-planner/subskills/cycling/SKILL.md) and
 [research register](../../skills/workout-planner/references/cycling-evidence.md)
 guide generation and adjustments. Garmin conversion supports timed steps and
 optional power ranges. Calendar placement uses the shared uploader.

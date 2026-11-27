@@ -12,7 +12,7 @@ from tempfile import mkdtemp
 
 from workoutplanner.chatgpt.generate import run_codex
 from workoutplanner.chatgpt.history import activity_date, activity_type_key, calendar_day, summarize_activity
-from workoutplanner.chatgpt.prompt import MAX_PROMPT_BYTES, SKILL_DIR, SPORTS, validate_existing_plan
+from workoutplanner.chatgpt.prompt import MAX_PROMPT_BYTES, SKILL_DIR, SPORTS, load_skill_instructions, validate_existing_plan
 from workoutplanner.chatgpt.strength_catalog import select_catalog
 from workoutplanner.garmin.encoding import build_workout
 from workoutplanner.planning_input import build_input, read_object
@@ -74,12 +74,7 @@ def build_week_prompt(export, profiles, today, lookback_days):
     if catalogs:
         data["garmin_exercise_catalog_by_profile"] = catalogs
 
-    instructions = ["SKILL.md"]
-    for sport in SPORTS:
-        if sport in sports:
-            instructions += [f"subskills/{sport}.md", f"references/{sport}-evidence.md"]
-    if "running" in sports:
-        instructions.append("references/running-output.md")
+    instructions = load_skill_instructions(sports)
     parts = [
         """Plan one next-workout option for each named profile within the planning
 window. Evaluate recent training and recovery across all sports together. Use the
@@ -101,7 +96,7 @@ sport-specific plan with one workout or null if a workout needs to be deferred.
 When history is sparse, use the athlete's goals and background to offer a
 conservative option where appropriate. Explain any necessary deferral in the rationale. For strength, use the catalog under
 that profile's name. Avoid scheduling dates unless the athlete requests them.""",
-        *((SKILL_DIR / path).read_text(encoding="utf-8").strip() for path in instructions),
+        *instructions,
         "# Input data",
     ]
     prefix = "\n\n".join(parts) + "\n\n"

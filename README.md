@@ -158,7 +158,7 @@ beside the workout instead of printing it.
 | `workoutplanner/garmin/` | Personal API reader, local workout encoder, and Garmin publishing adapter |
 | `workoutplanner/chatgpt/` | Compact prompt construction and authenticated generation |
 | `workoutplanner/planning_input.py`, `workoutplanner/workout_schema.py` | Shared JSON input and plan validation |
-| `skills/workout-planner/` | Shared skill, sport subskills, evidence and local exercise catalog |
+| `skills/workout-planner/` | Shared coordinator plus standalone running, cycling, and strength skills with linked research and output contracts |
 | `setup/`, `tests/` | Bootstrap, pinned dependency and offline tests |
 | `android/` | Native Android profile editor and mobile-app development plan |
 

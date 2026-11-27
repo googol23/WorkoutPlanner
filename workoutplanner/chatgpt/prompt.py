@@ -17,6 +17,24 @@ from workoutplanner.workout_schema import validate_plan
 SKILL_DIR = Path(__file__).resolve().parents[2] / "skills" / "workout-planner"
 MAX_PROMPT_BYTES = 24_000
 SPORTS = ("running", "cycling", "strength_training")
+OUTPUT_REFERENCES = {
+    "running": "references/running-output.md",
+    "cycling": "references/cycling-output.md",
+    "strength_training": "references/strength_training-output.md",
+}
+
+
+def load_skill_instructions(sports):
+    """Load the shared coordinator plus only the requested sport skills and evidence."""
+    paths = ["SKILL.md"]
+    for sport in SPORTS:
+        if sport in sports:
+            paths.extend((
+                f"subskills/{sport}/SKILL.md",
+                f"references/{sport}-evidence.md",
+                OUTPUT_REFERENCES[sport],
+            ))
+    return [(SKILL_DIR / path).read_text(encoding="utf-8").strip() for path in paths]
 
 
 def validate_existing_plan(plan, sport):
@@ -52,9 +70,7 @@ def build_prompt(planning_input, existing_plan=None, workout_name=None):
         existing_exercises = [exercise["name"] for exercise in selected["exercises"]] if existing_plan else []
         data["garmin_exercise_catalog"] = select_catalog(SKILL_DIR / "references", athlete, existing_exercises)
 
-    instructions = ["SKILL.md", f"subskills/{sport}.md", f"references/{sport}-evidence.md"]
-    if sport == "running":
-        instructions.append("references/running-output.md")
+    instructions = load_skill_instructions({sport})
     sections = [
         request,
         ("Follow the WorkoutPlanner instructions and the selected sport's references below. "
@@ -64,7 +80,7 @@ def build_prompt(planning_input, existing_plan=None, workout_name=None):
          "Do not assume coverage is complete or interpret "
          "omitted values as zero. If proposing a workout, return the rationale and a separate "
          "sport-specific JSON block."),
-        *((SKILL_DIR / path).read_text(encoding="utf-8").strip() for path in instructions),
+        *instructions,
         "# Input data",
     ]
     prefix = "\n\n".join(sections) + "\n\n"
