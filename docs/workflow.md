@@ -41,8 +41,10 @@ remain valid. Strength also accepts `preferred_machines` and
 Planning input schema 1.0 retains the complete exported activity history for
 local use. The model prompt uses a separate compact view. It has a 24 KB UTF-8
 budget and includes up to 12 recent summaries with up to three other-sport
-sessions for recovery context. It selects summary metrics, zones, early splits
-and up to 12 available exercise-set records per strength session. It sends
+sessions for recovery context. It selects a small set of sport-specific summary metrics, non-zero zone
+times, up to three split rows and up to eight available strength exercise
+sets. It leaves out Garmin IDs, activity metadata, raw chart samples, empty
+zones, unavailable-field listings and unrelated summary fields. It sends
 session numbers and calendar dates in place of Garmin IDs and exact timestamps. Raw chart
 samples stay local. This is partial history and missing values are unknown.
 
@@ -151,8 +153,8 @@ python -m workoutplanner.chatgpt.week --activities private/recent_activities.jso
 Both ends of the 14-day lookback are included. The next-workout horizon is
 today through six days ahead. Use `--lookback-days` to change the analysis
 window and request a matching export. The prompt reserves the latest session for each profiled sport, then adds
-other recent sessions as space allows. Counts still report all activity types
-in the window. The export may have gaps and raw chart samples stay local.
+other recent sessions as space allows. Counts report running, cycling, strength and a combined count for other
+activity types in the window. The export may have gaps and raw chart samples stay local.
 
 The planner uses one Codex request with a shared history and separate sport
 goals. The resulting directory under `private/weekly/` contains one Garmin

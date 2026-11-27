@@ -12,7 +12,7 @@ from tempfile import mkdtemp
 
 from workoutplanner.chatgpt.generate import run_codex
 from workoutplanner.chatgpt.history import (
-    SPORT_TYPE_KEYS, activity_date, activity_type_key, calendar_day, summarize_activity,
+    SPORT_TYPE_KEYS, activity_date, activity_type_key, calendar_day, sport_for_key, summarize_activity,
 )
 from workoutplanner.chatgpt.prompt import MAX_PROMPT_BYTES, SKILL_DIR, SPORTS, load_skill_instructions, validate_existing_plan
 from workoutplanner.chatgpt.strength_catalog import select_catalog
@@ -47,7 +47,7 @@ def build_week_prompt(export, profiles, today, lookback_days):
         elif first_day.isoformat() <= day <= today.isoformat():
             recent.append(activity)
     recent.sort(key=activity_date, reverse=True)
-    counts = Counter(activity_type_key(activity) or "unknown" for activity in recent)
+    counts = Counter(sport_for_key(activity_type_key(activity)) or "other" for activity in recent)
 
     # Reserve space for the newest session of each profiled sport first.
     first_by_sport = {}
