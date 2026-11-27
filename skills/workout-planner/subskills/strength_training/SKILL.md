@@ -12,7 +12,7 @@ Use this skill for a profile whose activity type is `strength_training`. Generat
 - Check history coverage and dates. Prefer recorded exercise-level sets, repetitions, load, and units over session summary totals. Distinguish active sets from warm-up sets when the export does so. Do not assume missing exercise details mean zero work.
 - Compare the same exercise and setup before progressing. Do not combine kilograms and pounds, infer a one-rep max from a set, or interpret total volume when the export's load units or counting method are unclear.
 - Use recent running and cycling as recovery context, especially for lower-body and trunk fatigue. Account for pain, soreness, fatigue, and the athlete's feedback even when device summaries look favorable.
-- Read `garmin_exercise_catalog` from the prompt when supplied. Select exact Garmin display names only. Match movement and equipment; similar names are not necessarily interchangeable. Apply equipment constraints as hard limits. Preferences are secondary to goal fit, safety, and availability. If no suitable catalog exercise exists, defer and ask a focused question instead of inventing a name.
+- Read `garmin_exercise_catalog` for a single profile, or `garmin_exercise_catalog_by_profile[profile_name]` in a multi-profile request. Select exact Garmin display names only. Match movement and equipment; similar names are not necessarily interchangeable. Apply equipment constraints as hard limits. Preferences are secondary to goal fit, safety, and availability. If no suitable catalog exercise exists, defer and ask a focused question instead of inventing a name.
 
 ## Build a balanced, realistic session
 
