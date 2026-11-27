@@ -33,6 +33,11 @@ class GarminActivityStore(context: Context) {
         }
     }
 
+    fun load(): JSONObject? {
+        if (!file.baseFile.exists()) return null
+        return file.openRead().bufferedReader(Charsets.UTF_8).use { JSONObject(it.readText()) }
+    }
+
     fun clear() {
         file.delete()
     }

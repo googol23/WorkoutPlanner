@@ -129,10 +129,13 @@ private fun WorkoutPlannerApp() {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { screen = "profiles" }) { Text("Profiles") }
                     OutlinedButton(onClick = { screen = "garmin" }) { Text("Garmin") }
+                    OutlinedButton(onClick = { screen = "planning" }) { Text("Plan") }
                 }
 
                 if (screen == "garmin") {
                     GarminConnectionScreen()
+                } else if (screen == "planning") {
+                    PlanningPreviewScreen(profiles)
                 } else {
                     Text("Manage your local athlete profiles", style = MaterialTheme.typography.titleMedium)
                     Text(message, style = MaterialTheme.typography.bodyMedium)
@@ -251,6 +254,45 @@ private fun WorkoutPlannerApp() {
                 Spacer(Modifier.height(8.dp))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PlanningPreviewScreen(profiles: List<AthleteProfile>) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val activityStore = remember { GarminActivityStore(context) }
+    var input by remember { mutableStateOf("") }
+    var prompt by remember { mutableStateOf("") }
+    var status by rememberSaveable { mutableStateOf("Preview stays on this phone. Nothing is sent to ChatGPT.") }
+    var loading by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Review planning input", style = MaterialTheme.typography.titleMedium)
+        Text("Builds one shared 14-day activity history and one workout request for every saved profile. This preview is local only.")
+        Button(onClick = {
+            scope.launch {
+                loading = true
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        val built = PlanningPrompt.build(profiles, activityStore.load())
+                        built
+                    }
+                }.onSuccess { (json, draftPrompt) ->
+                    input = json
+                    prompt = draftPrompt
+                    status = "Preview ready: ${profiles.size} profile(s), ${runCatching { org.json.JSONObject(json).getJSONArray("recent_activities").length() }.getOrDefault(0)} recent activity record(s)."
+                }.onFailure { status = it.message ?: "Could not build the preview." }
+                loading = false
+            }
+        }, enabled = !loading && profiles.isNotEmpty()) { Text(if (loading) "Building…" else "Build preview") }
+        Text(status, style = MaterialTheme.typography.bodyMedium)
+        if (profiles.isEmpty()) Text("Save at least one profile in Profiles first.")
+        if (input.isNotEmpty()) {
+            Text("Compact planning input", style = MaterialTheme.typography.titleSmall)
+            OutlinedTextField(input, {}, readOnly = true, modifier = Modifier.fillMaxWidth(), minLines = 6, maxLines = 12)
+            Text("Draft prompt", style = MaterialTheme.typography.titleSmall)
+            OutlinedTextField(prompt, {}, readOnly = true, modifier = Modifier.fillMaxWidth(), minLines = 10, maxLines = 20)
         }
     }
 }

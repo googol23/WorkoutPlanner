@@ -32,6 +32,10 @@ The initial Android milestone provides:
   available. The sync extracts lap summaries, time in heart-rate and power
   zones, and recorded strength set data. Unsupported or unavailable FIT data
   stays explicitly listed under `unavailable_fields`.
+- Build a compact local planning preview from every saved profile and the
+  available cross-sport history from the last 14 days. The app displays both
+  the structured input and the draft instruction without sending either to a
+  model or other service.
 
 Time-series samples, weather and workout steps are not yet decoded. FIT
 coverage depends on Garmin providing a downloadable file for the activity;
@@ -60,10 +64,9 @@ Android uses Garmin's official
    time-series and other useful fields only where Garmin provides a stable
    source. Summary/detail and FIT lap/zone/set extraction are implemented;
    live parity and coverage remain to be checked on the phone.
-3. **Add prompt construction and generation.** Port the compact multi-sport
-   input rules and schema validation. Present the exact activity data to be
-   sent for generation. Keep model credentials on-device and use only an
-   officially supported authorization path.
+3. **Connect supported model generation.** Prompt preview is implemented
+   locally. Select an officially supported Android authorization path before
+   enabling transmission to a model provider.
 4. **Add workout review.** Show the rationale and one plan for every configured
    profile. Let the user select one or several plans before upload; generation
    alone must not publish or schedule anything.

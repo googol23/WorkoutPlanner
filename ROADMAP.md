@@ -87,6 +87,7 @@ encrypted with Android Keystore and save the last 14 days of Garmin summaries,
 details and available FIT-derived laps, zones and strength sets in the
 app-private schema-1.0 export. The Garmin FIT Java SDK is used only to decode
 downloaded FIT files. Live FIT coverage and parity checks on the phone, model
-generation and Garmin upload remain open. The mobile milestones and provider
-access decisions are in
+generation and Garmin upload remain open. A local planning preview now builds
+one compact multi-sport input and draft prompt for all saved profiles; no data
+is sent to a model yet. The mobile milestones and provider access decisions are in
 [`docs/android-app.md`](docs/android-app.md).

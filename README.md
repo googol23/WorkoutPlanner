@@ -184,6 +184,8 @@ The Android app is a separate Kotlin project under [`android/`](android/). It
 edits and exchanges the same `athlete_profiles.json` format used by the local
 Python runner and can sync recent Garmin activity summaries plus available
 FIT-derived laps, zones and strength sets using an encrypted Personal API key.
-It does not replace or modify the local pipeline. Workout generation and
-upload remain planned. See the [Android app plan](docs/android-app.md) for
-status, FIT coverage and account-access prerequisites.
+It can also build a compact, on-device preview combining every saved profile
+with the recent cross-sport history. The preview is not sent to an AI provider.
+Model generation and Garmin workout upload remain planned. See the [Android
+app plan](docs/android-app.md) for status, FIT coverage and account-access
+prerequisites.
