@@ -59,7 +59,6 @@ ZIP in memory. Run from the project root with your numeric ID in place of ID.
 ```bash
 (
   unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY http_proxy https_proxy all_proxy ftp_proxy
-  .venv/bin/python -m pip install -r setup/requirements-fit-check.txt &&
   .venv/bin/python -m workoutplanner.garmin.personal check-fit ID --compare-export private/strength-reference.json
 )
 ```
@@ -67,16 +66,16 @@ ZIP in memory. Run from the project root with your numeric ID in place of ID.
 The report separates rest and active records and compares repetitions in
 returned order. It only compares loads when both sides have explicit,
 comparable units. Device recordings and subsequent Garmin Connect edits can
-differ. The optional decoder is independent of Garmin login and workout uploads.
+differ. The FIT decoder is installed by the normal project setup. It is independent of Garmin login and workout uploads.
 
 ### Opt-in activity sync
 
 Use `--source personal` with `download_activities.py` and the existing
 `--activity-id`, `--limit` or inclusive `--time-range` options. This is
 the normal activity sync path. The `legacy` source is retained for reader
-comparison. Use a separate output file while comparing the two readers. Install the FIT
-decoder as above for strength, running and cycling history. The standalone
-reader environment also supports local workout generation.
+comparison. Use a separate output file while comparing the two readers. Normal setup
+installs the FIT decoder needed for strength, running and cycling history. The
+standalone reader environment also includes it and supports local generation.
 The Personal API supplies summaries across sports. For strength it also
 reads recorded sets from the original FIT with loads in kilograms. No
 exercise name is inferred from reps, load or a broad exercise category.

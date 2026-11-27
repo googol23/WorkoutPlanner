@@ -19,8 +19,9 @@ bash setup/bootstrap.sh --install-codex &&
 source .venv/bin/activate
 ```
 
-Bootstrap installs the APT prerequisites, Python dependencies and a compatible
-Codex CLI, then runs the offline tests. Use `--skip-os` if the prerequisites
+Bootstrap installs the APT prerequisites, Python dependencies (including the
+FIT decoder required for detailed Personal API sync) and a compatible Codex CLI,
+then runs the offline tests. Use `--skip-os` if the prerequisites
 are already installed. If your system Python is older, set
 `WORKOUTPLANNER_PYTHON` to an installed Python 3.12+ interpreter with venv
 support. CPython 3.12 on x86-64 Linux uses the repository's hashed wheel lock.

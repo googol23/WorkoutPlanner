@@ -8,3 +8,4 @@ pycparser==3.12
 requests==2.34.2
 ua-generator==2.1.9
 urllib3==2.8.0
+garmin-fit-sdk==21.222.0

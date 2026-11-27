@@ -292,9 +292,7 @@ def main(argv=None):
         write_private(output, json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False) + "\n")
         print(f"Exported {len(result['activities'])} activity record(s) to {output}")
         return 0
-    except (OSError, ValueError, RuntimeError, EOFError,
-            GarminConnectAuthenticationError, GarminConnectConnectionError,
-            GarminConnectTooManyRequestsError, GarminConnectNotFoundError) as exc:
+    except errors as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

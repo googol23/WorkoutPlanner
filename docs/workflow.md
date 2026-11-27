@@ -99,7 +99,7 @@ the live checks separately.
 
 ## Dependency verification
 
-The full bootstrap installs the uploader dependencies using a hash-locked wheel set on x86-64 Linux with CPython 3.12. Other platforms use pinned constraints and wheels. The `--reader-only` setup creates an isolated reader environment with the FIT decoder and does not install `garminconnect`. Hashes verify the
+The full bootstrap installs the uploader dependencies and FIT decoder using a hash-locked wheel set on x86-64 Linux with CPython 3.12. Other platforms use pinned constraints and wheels. The `--reader-only` setup creates an isolated reader environment with the FIT decoder and does not install `garminconnect`. Hashes verify the
 downloaded files against the repository lock. Dependency advisory checks
 remain a separate step.
 
