@@ -62,7 +62,7 @@ object PlanningPrompt {
                 add(outputReferences.getValue(sport))
             }
         }
-        val skillText = skillPaths.joinToString("\\n\\n") { path ->
+        val skillText = skillPaths.joinToString("\n\n") { path ->
             runCatching {
                 context.assets.open(path).bufferedReader(Charsets.UTF_8).use { it.readText() }
             }.getOrElse { error ->
@@ -73,8 +73,8 @@ object PlanningPrompt {
             "Use the shared 14-day history across all activity types to judge load and recovery, then generate one next-session option per profile for the coming seven-day planning window. " +
             "The athlete may choose none or one option; do not assume every option will be performed. Respect each profile's goals, time, equipment, constraints and preferences. " +
             "Do not invent missing metrics. Treat study findings as bounded evidence, cite relevant source IDs and links in the rationale, and follow each exact JSON output contract. " +
-            "Return rationale separately from a JSON workout bundle with priority and one plan (or null if deferred) per profile. Do not schedule or upload anything.\\n\\n" +
-            skillText + "\\n\\n# Input data\\n" + input.toString(2)
+            "Return a JSON object with exactly rationale (text) and workout_json (a JSON-encoded string). The decoded workout_json object must have exactly priority and plans; plans must contain one entry per profile, each a sport-specific plan or null if deferred. Do not schedule or upload anything.\n\n" +
+            skillText + "\n\n# Input data\n" + input.toString(2)
         return input.toString(2) to prompt
     }
 }
