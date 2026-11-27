@@ -47,6 +47,13 @@ object PlanningPrompt {
         val input = JSONObject().put("schema_version", "1.0")
             .put("as_of", today.toString()).put("history_start", start.toString())
             .put("profiles", profileJson).put("recent_activities", recent)
+        if (profiles.any { it.activityType == ActivityTypes.STRENGTH }) {
+            val catalogs = JSONObject()
+            profiles.filter { it.activityType == ActivityTypes.STRENGTH }.forEach { profile ->
+                catalogs.put(profile.name, selectStrengthCatalog(context, profile))
+            }
+            input.put("garmin_exercise_catalog_by_profile", catalogs)
+        }
         val sports = profiles.map { it.activityType }.distinct()
         val outputReferences = mapOf(
             ActivityTypes.RUNNING to "references/running-output.md",
@@ -76,5 +83,46 @@ object PlanningPrompt {
             "Return a JSON object with exactly rationale (text) and workout_json (a JSON-encoded string). The decoded workout_json object must have exactly priority and plans; plans must contain one entry per profile, each a sport-specific plan or null if deferred. Do not schedule or upload anything.\n\n" +
             skillText + "\n\n# Input data\n" + input.toString(2)
         return input.toString(2) to prompt
+    private fun selectStrengthCatalog(context: Context, profile: AthleteProfile): JSONObject {
+        fun readJson(path: String) = context.assets.open(path).bufferedReader(Charsets.UTF_8).use { it.readText() }
+
+        val fullCatalog = JSONObject(readJson("references/garmin-strength-exercises.json"))
+        val defaults = JSONObject(readJson("references/strength-default-exercises.json"))
+        fun normalize(value: String) = value.lowercase()
+            .replace(Regex("[^a-z0-9]+"), " ")
+            .trim()
+
+        val exactNames = mutableMapOf<String, String>()
+        fullCatalog.keys().forEach { category ->
+            val names = fullCatalog.optJSONArray(category) ?: return@forEach
+            for (index in 0 until names.length()) {
+                val name = names.optString(index)
+                exactNames[normalize(name)] = name
+            }
+        }
+
+        val preferred = profile.preferredExercises.mapNotNull { request ->
+            val key = if (normalize(request) == "glute bridge") "hip raise" else normalize(request)
+            exactNames[key]
+        }.distinct()
+        if (preferred.isNotEmpty()) defaults.put("preferred_or_existing", JSONArray(preferred))
+
+        val machineMatches = mutableListOf<String>()
+        profile.preferredMachines.forEach { machine ->
+            val term = normalize(machine).removeSuffix(" machine")
+            if (term.isNotBlank()) {
+                exactNames.forEach { (normalized, displayName) ->
+                    if (" $term " in " $normalized " && displayName !in machineMatches) {
+                        machineMatches += displayName
+                    }
+                }
+            }
+        }
+        if (machineMatches.isNotEmpty()) {
+            defaults.put("machine_matches", JSONArray(machineMatches.take(24)))
+        }
+        return defaults
+    }
+
     }
 }
