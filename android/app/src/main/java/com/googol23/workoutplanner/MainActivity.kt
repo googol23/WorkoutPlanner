@@ -297,7 +297,7 @@ private fun PlanningPreviewScreen(profiles: List<AthleteProfile>) {
             OutlinedButton(onClick = {
                 scope.launch {
                     loading = true
-                    runCatching { ChatGptPlanClient.signIn(context) }
+                    runCatching { ChatGptPlanClient.signIn(context) { step -> status = step } }
                         .onSuccess { connected = true; accountEmail = it.email; status = "ChatGPT connected. Plan usage permission was granted." }
                         .onFailure { status = it.message ?: "ChatGPT sign-in failed." }
                     loading = false

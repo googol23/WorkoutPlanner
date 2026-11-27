@@ -8,6 +8,7 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
@@ -68,7 +69,10 @@ object ChatGptPlanClient {
         if (ks.containsAlias(KEY_ALIAS)) ks.deleteEntry(KEY_ALIAS)
     }
 
-    suspend fun signIn(context: Context): ChatGptCredential = withContext(Dispatchers.IO) {
+    suspend fun signIn(
+        context: Context,
+        onProgress: suspend (String) -> Unit = {},
+    ): ChatGptCredential = withContext(Dispatchers.IO) {
         val preferences = context.getSharedPreferences(STORE_PREFS, Context.MODE_PRIVATE)
         val hostId = preferences.getString(HOST_PREF, null) ?: "urn:uuid:${UUID.randomUUID()}".also {
             check(preferences.edit().putString(HOST_PREF, it).commit()) { "Could not initialize this phone's ChatGPT connection." }
@@ -93,22 +97,32 @@ object ChatGptPlanClient {
         val listener = Thread {
             try {
                 callback.use { server ->
-                    val socket = server.accept()
-                    socket.use { client ->
-                        client.soTimeout = 10_000
-                        val reader = client.getInputStream().bufferedReader(StandardCharsets.US_ASCII)
-                        val requestLine = reader.readLine().orEmpty()
-                        while (reader.readLine().orEmpty().isNotEmpty()) { /* drain headers */ }
-                        val target = requestLine.split(' ').getOrNull(1).orEmpty()
-                        val uri = Uri.parse("http://127.0.0.1$target")
-                        val params = mutableMapOf<String, String>()
-                        uri.queryParameterNames.forEach { key -> params[key] = uri.getQueryParameter(key).orEmpty() }
-                        val body = "<html><body>WorkoutPlanner sign-in received. You can return to the app.</body></html>"
-                        val bytes = body.toByteArray(StandardCharsets.UTF_8)
-                        client.getOutputStream().write(("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\nContent-Length: ${bytes.size}\r\n\r\n").toByteArray(StandardCharsets.US_ASCII))
-                        client.getOutputStream().write(bytes)
-                        client.getOutputStream().flush()
-                        result.complete(params)
+                    while (!result.isCompleted) {
+                        val socket = server.accept()
+                        socket.use { client ->
+                            client.soTimeout = 10_000
+                            val reader = client.getInputStream().bufferedReader(StandardCharsets.US_ASCII)
+                            val requestLine = reader.readLine().orEmpty()
+                            while (reader.readLine().orEmpty().isNotEmpty()) { /* drain headers */ }
+                            val pieces = requestLine.split(' ')
+                            val method = pieces.getOrNull(0).orEmpty()
+                            val target = pieces.getOrNull(1).orEmpty()
+                            val uri = Uri.parse("http://127.0.0.1$target")
+                            val validCallback = method == "GET" && uri.path == CALLBACK_PATH
+                            val params = mutableMapOf<String, String>()
+                            if (validCallback) uri.queryParameterNames.forEach { key -> params[key] = uri.getQueryParameter(key).orEmpty() }
+                            val body = if (validCallback) {
+                                "<html><body>WorkoutPlanner received the sign-in return. You can return to the app.</body></html>"
+                            } else {
+                                "<html><body>WorkoutPlanner sign-in is still waiting for ChatGPT authorization.</body></html>"
+                            }
+                            val bytes = body.toByteArray(StandardCharsets.UTF_8)
+                            val status = if (validCallback) "200 OK" else "404 Not Found"
+                            client.getOutputStream().write(("HTTP/1.1 $status\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\nContent-Length: ${bytes.size}\r\n\r\n").toByteArray(StandardCharsets.US_ASCII))
+                            client.getOutputStream().write(bytes)
+                            client.getOutputStream().flush()
+                            if (validCallback) result.complete(params)
+                        }
                     }
                 }
             } catch (error: Exception) { result.completeExceptionally(error) }
@@ -130,8 +144,13 @@ object ChatGptPlanClient {
             query.forEach { (key, value) -> appendQueryParameter(key, value) }
         }.build()
         try {
+            withContext(Dispatchers.Main) { onProgress("Waiting for ChatGPT authorization in the browser…") }
             context.startActivity(Intent(Intent.ACTION_VIEW, authUri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            val params = withTimeout(180_000) { result.await() }
+            val params = try {
+                withTimeout(180_000) { result.await() }
+            } catch (_: TimeoutCancellationException) {
+                throw IllegalStateException("ChatGPT did not return to WorkoutPlanner. Keep the app open, finish authorization in the browser, then retry.")
+            }
             require(params["state"] == state) { "ChatGPT sign-in state did not match. Try again." }
             params["error"]?.let { code ->
                 val message = if (code == "access_denied") "ChatGPT plan access was not authorized." else "ChatGPT sign-in failed ($code)."
@@ -144,6 +163,7 @@ object ChatGptPlanClient {
             check(preferences.edit().putString(CLIENT_PREF, clientId).commit()) {
                 "Could not save the ChatGPT client registration for retry."
             }
+            withContext(Dispatchers.Main) { onProgress("Authorization returned. Exchanging the one-time code…") }
             val token = exchangeToken(mapOf(
                 "grant_type" to "authorization_code", "client_id" to clientId, "code" to code,
                 "code_verifier" to verifier, "redirect_uri" to redirectUri, "resource" to RESOURCE,
@@ -153,6 +173,7 @@ object ChatGptPlanClient {
                 "ChatGPT sign-in succeeded, but plan usage was not authorized. Reconnect and approve plan usage."
             }
             val idToken = token.optString("id_token")
+            withContext(Dispatchers.Main) { onProgress("Verifying the ChatGPT account and granted permissions…") }
             val claims = verifyIdToken(idToken, clientId, nonce)
             val subject = claims.getString("sub")
             val email = claims.optString("email")
@@ -165,6 +186,7 @@ object ChatGptPlanClient {
                 email, subject, Instant.now().epochSecond + token.optLong("expires_in", 3600), scopes,
             )
             write(context, credential)
+            withContext(Dispatchers.Main) { onProgress("ChatGPT connected.") }
             credential
         } catch (error: Exception) {
             if (error is IllegalStateException) throw error

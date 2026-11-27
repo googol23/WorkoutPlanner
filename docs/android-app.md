@@ -57,6 +57,12 @@ billing fallback is attempted. The app sends the current profile/history
 prompt to OpenAI only after the user taps Generate. `store: false` prevents
 Responses API response storage; it does not make the request local.
 
+During sign-in, the app opens the system browser and waits for OpenAI to return
+to a loopback callback on the same phone. The browser shows a confirmation page;
+then return to WorkoutPlanner while it exchanges and validates the tokens. The
+Plan screen shows which stage is active and times out with a retry message if
+the callback does not arrive.
+
 Android uses Garmin's official
 [`fit-java-sdk`](https://github.com/garmin/fit-java-sdk), pinned to
 `com.garmin:fit:21.222.0`. Garmin distributes this library under the
