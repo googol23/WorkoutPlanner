@@ -24,17 +24,49 @@ OUTPUT_REFERENCES = {
 }
 
 
+COORDINATION_GUIDANCE = """Coordinate the next workout option for each profile. Consider same-sport and cross-sport
+training stress, effort, time, equipment, feedback, and uncertainty together. Usually the athlete
+chooses one option, so rank options by readiness and goal relevance; explain spacing if several
+are chosen. A partial export is not proof of rest. Do not infer missing metrics, physiological
+thresholds, injury diagnoses, or complete training load. Use numeric targets only when supported
+by the profile or comparable sport-specific history. Cite only relevant source IDs and direct
+links from the included evidence register, with their limits."""
+
+
+SPORT_GUIDANCE = {
+    "running": """Running: choose one clear purpose and anchor duration to availability and recent tolerated
+runs. Use easy conversational or run-walk effort when evidence is sparse. Do not infer threshold
+pace or heart-rate targets from average or peak activity values. Consider other-sport fatigue and
+pain; include warm-up, cool-down, and exact repeat arithmetic when appropriate.""",
+    "cycling": """Cycling: compare like conditions and do not use speed alone as an effort measure. Use FTP,
+watts, or heart-rate targets only when current benchmarks and zone settings are supported;
+otherwise use talk-test, RPE, cadence intent, and terrain cues. Match duration to availability
+and recent tolerated rides. For bikepacking, build sustainable time-on-bike progressively.""",
+    "strength_training": """Strength: prefer recorded exercise-level sets with comparable equipment and units. Use only exact
+exercise names in the supplied Garmin catalog and respect available equipment. Do not infer a
+one-rep max or mix load units. Set a repeatable submaximal dose; failure is not required. Include
+warm-up, work sets, repetitions, rest, effort cues, and realistic total session time.""",
+}
+
+
+EVIDENCE_REFERENCES = {
+    "running": "references/running-evidence.md",
+    "cycling": "references/cycling-evidence.md",
+    "strength_training": "references/strength_training-evidence.md",
+}
+
+
 def load_skill_instructions(sports):
-    """Load the shared coordinator plus only the requested sport skills and evidence."""
-    paths = ["SKILL.md"]
+    """Build a compact execution brief while retaining sourced evidence and exact output contracts."""
+    instructions = [COORDINATION_GUIDANCE]
     for sport in SPORTS:
         if sport in sports:
-            paths.extend((
-                f"subskills/{sport}/SKILL.md",
-                f"references/{sport}-evidence.md",
-                OUTPUT_REFERENCES[sport],
+            instructions.extend((
+                SPORT_GUIDANCE[sport],
+                (SKILL_DIR / EVIDENCE_REFERENCES[sport]).read_text(encoding="utf-8").strip(),
+                (SKILL_DIR / OUTPUT_REFERENCES[sport]).read_text(encoding="utf-8").strip(),
             ))
-    return [(SKILL_DIR / path).read_text(encoding="utf-8").strip() for path in paths]
+    return instructions
 
 
 def validate_existing_plan(plan, sport):
