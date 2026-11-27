@@ -83,7 +83,7 @@ and was recognized as already published on retry.
 The standalone native app is under `android/`; the Python local runner remains
 available and unchanged. Profile editing and profile JSON import/export have
 been tested on an Android phone. The app can store the Garmin Personal API key
-encrypted with Android Keystore and preview recent activity summaries. Full
-activity history and FIT metric sync, model generation and Garmin upload remain
-open. The mobile milestones and provider access decisions are in
+encrypted with Android Keystore and save the last 14 days of Garmin summaries
+and details in the app-private schema-1.0 export. FIT metric sync, model
+generation and Garmin upload remain open. The mobile milestones and provider access decisions are in
 [`docs/android-app.md`](docs/android-app.md).

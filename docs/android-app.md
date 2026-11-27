@@ -24,14 +24,16 @@ The initial Android milestone provides:
 - App-private profile storage. Profiles are not written to the repository or
   uploaded by this milestone.
 - Garmin Personal API key entry, AES-GCM encryption using an Android Keystore
-  key, removal, and an on-demand connection check.
-- A temporary preview of up to 20 completed activity summaries from the last
-  14 days. Summary rows stay in memory and are not yet saved as planning input.
+  key, removal, and on-demand sync.
+- Read-only sync of completed activity summaries and details over the last 14
+  days, paginated with a 100-activity safety limit. The JSON is saved in
+  app-private storage using the existing schema version 1.0.
 
-The preview is only a connection check. Full activity detail, FIT metrics,
-local activity-history persistence, OpenAI generation and Garmin workout
-publishing are not implemented. The app does not read the desktop Garmin tokens
-or Codex credentials.
+The sync does not yet download or parse original FIT files. Laps, zones,
+time-series samples, weather, workout steps and recorded strength sets are
+marked unavailable. OpenAI generation and Garmin workout publishing are not
+implemented. The app does not read the desktop Garmin tokens or Codex
+credentials.
 
 ## Integration sequence
 
@@ -44,10 +46,10 @@ or Codex credentials.
    flow for arbitrary apps. Confirm an eligible ChatGPT integration before
    promising account-based generation; the OpenAI API key route has separate
    API billing.
-2. **Finish Garmin read-only sync.** Fetch full activity summaries and details
-   for the selected window, download and parse original FIT records, preserve
-   the established activity JSON contract, and save it in app-private storage.
-   The current connection check only previews summaries.
+2. **Finish Garmin read-only sync.** Download and parse original FIT records,
+   preserve the established activity JSON contract for laps, zones and strength
+   sets, and support clearing the app-private history. Summary/detail sync is
+   implemented; FIT coverage remains.
 3. **Add prompt construction and generation.** Port the compact multi-sport
    input rules and schema validation. Present the exact activity data to be
    sent for generation. Keep model credentials on-device and use only an

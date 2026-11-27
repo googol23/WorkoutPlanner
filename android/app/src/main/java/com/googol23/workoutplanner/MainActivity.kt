@@ -275,21 +275,26 @@ private fun GarminConnectionScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val secretStore = remember { GarminSecretStore(context) }
+    val activityStore = remember { GarminActivityStore(context) }
     var keyInput by rememberSaveable { mutableStateOf("") }
     var hasKey by remember { mutableStateOf(false) }
+    var syncedCount by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var status by rememberSaveable { mutableStateOf("Garmin Personal API key is stored only on this phone.") }
     var activities by remember { mutableStateOf(emptyList<GarminActivityPreview>()) }
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
         hasKey = withContext(Dispatchers.IO) { secretStore.hasKey() }
+        syncedCount = withContext(Dispatchers.IO) { activityStore.activityCount() }
+        if (syncedCount > 0) status = "$syncedCount activity record(s) are saved on this phone."
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Garmin Personal API", style = MaterialTheme.typography.titleMedium)
         Text(
             "Enter the Personal API key from Garmin Connect. WorkoutPlanner encrypts it with Android Keystore. " +
-                "This check reads at most 20 activity summaries from the last 14 days; it does not upload workouts.",
+                "Sync reads completed activities from the last 14 days and saves their summary details locally. " +
+                "FIT laps, zones and strength sets are not included yet; no workouts are uploaded.",
             style = MaterialTheme.typography.bodyMedium,
         )
         OutlinedTextField(
@@ -322,17 +327,19 @@ private fun GarminConnectionScreen() {
                     runCatching {
                         withContext(Dispatchers.IO) {
                             val key = secretStore.read()
-                            val today = LocalDate.now()
-                            GarminPersonalClient.fetchRecentPreview(key, today)
+                            val synced = GarminPersonalClient.syncRecentActivities(key, LocalDate.now())
+                            activityStore.save(synced.export)
+                            synced
                         }
-                    }.onSuccess { rows ->
-                        activities = rows
-                        status = "Garmin connection succeeded. Loaded ${rows.size} recent completed activity summary(s)."
+                    }.onSuccess { result ->
+                        activities = result.activities
+                        syncedCount = result.activities.size
+                        status = "Synced ${result.activities.size} completed activity record(s) to app-private storage."
                     }.onFailure { status = it.message ?: "Garmin connection failed." }
                     loading = false
                 }
             }, enabled = !loading && hasKey) {
-                Text(if (loading) "Connecting…" else "Check connection")
+                Text(if (loading) "Syncing…" else "Sync last 14 days")
             }
         }
         if (hasKey) {
@@ -350,6 +357,21 @@ private fun GarminConnectionScreen() {
                 }
             }, enabled = !loading) { Text("Remove saved key") }
         }
+        if (syncedCount > 0) {
+            OutlinedButton(onClick = {
+                scope.launch {
+                    loading = true
+                    runCatching { withContext(Dispatchers.IO) { activityStore.clear() } }
+                        .onSuccess {
+                            syncedCount = 0
+                            activities = emptyList()
+                            status = "Synced activity history removed from this phone."
+                        }
+                        .onFailure { status = it.message ?: "Could not remove synced history." }
+                    loading = false
+                }
+            }, enabled = !loading) { Text("Remove synced history") }
+        }
         Text(status, style = MaterialTheme.typography.bodyMedium)
         if (activities.isNotEmpty()) {
             Text("Recent preview", style = MaterialTheme.typography.titleSmall)
@@ -362,7 +384,7 @@ private fun GarminConnectionScreen() {
                 Text("${activity.localDate} · ${activity.activityType}: ${activity.name}$duration$distance")
             }
             Text(
-                "This is a temporary summary preview. Detailed metrics and FIT records are not synced yet.",
+                "The local JSON preserves Garmin activity summaries. FIT-derived laps, zones and exercise sets are not synced yet.",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
